@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Taktiktafel – TSV Handorf (Modal-UX)</title>
+<title>Taktiktafel – TSV Handorf (Animation)</title>
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -21,9 +21,12 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand h1 { font-size: 16px; margin: 0; font-weight: 700; }
   .brand img { width: 48px; height: 58px; object-fit: contain; }
-  button, select {
+  button, select, input[type="number"] {
     padding: 10px 14px; border-radius: 10px; border: 1px solid #ddd; background: white;
     font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); cursor: pointer;
+  }
+  input[type="text"] {
+    padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; font-weight: 500;
   }
   button:active { transform: scale(0.98); }
   .toggle.on { background: #e6ffe6; border-color: #7ed957; }
@@ -35,24 +38,25 @@
   .player text { fill: #fff; font-weight: 700; font-size: 4px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
   .ball circle { fill: white; stroke: black; stroke-width: 0.6; }
   .hint { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.7); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 12px; }
-  /* Modal */
+
+  /* Modal base */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
-  .modal { width: min(760px, 96vw); max-height: 85vh; background: #fff; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; }
+  .modal { width: min(880px, 96vw); max-height: 85vh; background: #fff; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; }
   .modal header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
   .modal header h2 { font-size: 16px; margin: 0; }
   .modal .content { padding: 14px 16px; overflow: auto; }
-  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px; border-top: 1px solid #eee; }
+  .modal .actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px; border-top: 1px solid #eee; flex-wrap: wrap; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-  .input { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; min-width: 240px; }
   .list { border: 1px solid #eee; border-radius: 12px; overflow: hidden; }
-  .item { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; }
-  .item:nth-child(odd) { background: #fafafa; }
-  .name { font-weight: 700; }
-  .meta { font-size: 12px; color: #666; }
+  .scene { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 8px; align-items: center; padding: 10px 12px; }
+  .scene:nth-child(odd) { background: #fafafa; }
+  .scene .name { width: 100%; }
+  .scene .dur { width: 90px; }
   .btn-danger { background: #ffeaea; border-color: #f3b1b1; }
   .btn-primary { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
   .btn-primary:active { transform: none; filter: brightness(0.95); }
   .btn-flat { background: #fff; }
+  .small { padding: 6px 10px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -82,6 +86,19 @@
 
     <button id="openSave" class="btn-primary">Speichern…</button>
     <button id="openLoad" class="btn-flat">Laden…</button>
+
+    <!-- Animation controls (quick) -->
+    <button id="sceneAdd" class="ghost">Szene +</button>
+    <button id="openAnim" class="ghost">Animation…</button>
+    <button id="animPlay" class="ghost">Play ▶</button>
+    <button id="animPause" class="ghost">Pause ⏸</button>
+    <button id="animStop" class="ghost">Stop ⏹</button>
+    <label style="display:flex;align-items:center;gap:6px">Loop <input type="checkbox" id="animLoop"></label>
+    <label style="display:flex;align-items:center;gap:6px">FPS
+      <select id="animFps">
+        <option>24</option><option selected>30</option><option>60</option>
+      </select>
+    </label>
   </div>
   <div class="brand">
     <h1>Taktiktafel – TSV Handorf</h1>
@@ -153,9 +170,49 @@
   </div>
 </div>
 
+<!-- Animation Modal -->
+<div id="animModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="animTitle">
+  <div class="modal">
+    <header>
+      <h2 id="animTitle">Animation / Timeline</h2>
+      <button class="btn-flat" id="closeAnim">✕</button>
+    </header>
+    <div class="content">
+      <div class="row">
+        <input id="sceneName" class="input" type="text" placeholder="Name der Szene (z. B. Aufbau links)" />
+        <input id="sceneDur" class="input" type="number" min="0.2" step="0.1" value="2.0" style="width:120px" />
+        <button id="sceneAddModal" class="btn-primary">Szene aus aktueller Anordnung hinzufügen</button>
+      </div>
+      <div class="list" id="sceneList"></div>
+    </div>
+    <div class="actions">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button id="animPlay2" class="btn-primary small">Play ▶</button>
+        <button id="animPause2" class="small">Pause ⏸</button>
+        <button id="animStop2" class="small">Stop ⏹</button>
+        <label style="display:flex;align-items:center;gap:6px">Loop <input type="checkbox" id="animLoop2"></label>
+        <label style="display:flex;align-items:center;gap:6px">FPS
+          <select id="animFps2">
+            <option>24</option><option selected>30</option><option>60</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input id="seqName" class="input" type="text" placeholder="Name der Sequenz" />
+        <button id="seqSave" class="small">Sequenz speichern</button>
+        <select id="seqSelect"></select>
+        <button id="seqLoad" class="small">Sequenz laden</button>
+        <button id="seqDelete" class="btn-danger small">Sequenz löschen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const KEY = "tsv_taktiktafel_named_saves_modal_v1";
+  const KEY_SEQ = "tsv_taktiktafel_sequences_v1";
+
   const svg = document.getElementById('board');
   const playersG = document.getElementById('players');
   const ballG = document.getElementById('ball');
@@ -167,6 +224,7 @@
   const team2Sel = document.getElementById('team2Color');
   const openSave = document.getElementById('openSave');
   const openLoad = document.getElementById('openLoad');
+
   const saveModal = document.getElementById('saveModal');
   const loadModal = document.getElementById('loadModal');
   const closeSave = document.getElementById('closeSave');
@@ -178,7 +236,37 @@
   const saveList = document.getElementById('saveList');
   const loadList = document.getElementById('loadList');
 
+  // Animation Elements
+  const openAnim = document.getElementById('openAnim');
+  const animModal = document.getElementById('animModal');
+  const closeAnim = document.getElementById('closeAnim');
+
+  const sceneName = document.getElementById('sceneName');
+  const sceneDur = document.getElementById('sceneDur');
+  const sceneAdd = document.getElementById('sceneAdd');
+  const sceneAddModal = document.getElementById('sceneAddModal');
+  const sceneList = document.getElementById('sceneList');
+
+  const animPlay = document.getElementById('animPlay');
+  const animPause = document.getElementById('animPause');
+  const animStop = document.getElementById('animStop');
+  const animLoop = document.getElementById('animLoop');
+  const animFps = document.getElementById('animFps');
+
+  const animPlay2 = document.getElementById('animPlay2');
+  const animPause2 = document.getElementById('animPause2');
+  const animStop2 = document.getElementById('animStop2');
+  const animLoop2 = document.getElementById('animLoop2');
+  const animFps2 = document.getElementById('animFps2');
+
+  const seqName = document.getElementById('seqName');
+  const seqSelect = document.getElementById('seqSelect');
+  const seqSave = document.getElementById('seqSave');
+  const seqLoad = document.getElementById('seqLoad');
+  const seqDelete = document.getElementById('seqDelete');
+
   const PITCH_H = 105;
+
   let drawMode = false;
   let team1Color = team1Sel.value;
   let team2Color = team2Sel.value;
@@ -305,7 +393,7 @@
     while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild);
   });
 
-  // Storage helpers
+  // ------- Save / Load (arrangements) -------
   function getSaves(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e) { return {}; } }
   function setSaves(obj){ localStorage.setItem(KEY, JSON.stringify(obj)); }
   function fmtDate(ts){ const d=new Date(ts); return d.toLocaleString(); }
@@ -327,15 +415,9 @@
     }
     if(Array.isArray(data.players)){
       data.players.forEach(info=>{
-        const g = playersG.querySelector(`.player[data-team="{0}"][data-number="{1}"]`.replace("{{0}}", info.team).replace("{{1}}", info.number));
-      });
-    }
-    // apply players again (simpler without template issue)
-    if(Array.isArray(data.players)){
-      data.players.forEach(function(info){
-        var g = playersG.querySelector('.player[data-team="' + info.team + '"][data-number="' + info.number + '"]');
+        const g = playersG.querySelector('.player[data-team="'+info.team+'"][data-number="'+info.number+'"]');
         if(!g) return;
-        var c=g.querySelector('circle'), t=g.querySelector('text');
+        const c=g.querySelector('circle'), t=g.querySelector('text');
         c.setAttribute('cx', info.x); c.setAttribute('cy', info.y);
         t.setAttribute('x', info.x); t.setAttribute('y', info.y);
       });
@@ -354,53 +436,49 @@
     }
   }
 
-  // Save modal
   function renderSaveList(){
     const saves = getSaves();
     const names = Object.keys(saves).sort();
-    if(!names.length){ saveList.innerHTML = '<div class="item"><span class="meta">Noch nichts gespeichert.</span></div>'; return; }
-    saveList.innerHTML = names.map(function(name){
-      return '<div class="item">\
-        <div>\
-          <div class="name">'+name+'</div>\
-          <div class="meta">'+fmtDate(saves[name].ts)+'</div>\
-        </div>\
-        <div style="display:flex; gap:6px">\
-          <button data-act="overwrite" data-name="'+name+'" class="ghost">Überschreiben</button>\
-          <button data-act="delete" data-name="'+name+'" class="btn-danger">Löschen</button>\
-        </div>\
-      </div>';
-    }).join('');
+    if(!names.length){ saveList.innerHTML = '<div class="scene"><span class="meta">Noch nichts gespeichert.</span></div>'; return; }
+    saveList.innerHTML = names.map(name => `
+      <div class="scene">
+        <div>
+          <div class="name">${name}</div>
+          <div class="meta">${fmtDate(saves[name].ts)}</div>
+        </div>
+        <button data-act="overwrite" data-name="${name}" class="ghost small">Überschreiben</button>
+        <button data-act="load" data-name="${name}" class="small">Laden</button>
+        <button data-act="delete" data-name="${name}" class="btn-danger small">Löschen</button>
+      </div>
+    `).join('');
   }
   function renderLoadList(){
     const saves = getSaves();
     const names = Object.keys(saves).sort();
-    if(!names.length){ loadList.innerHTML = '<div class="item"><span class="meta">Keine gespeicherten Anordnungen.</span></div>'; return; }
-    loadList.innerHTML = names.map(function(name){
-      return '<div class="item">\
-        <div>\
-          <div class="name">'+name+'</div>\
-          <div class="meta">'+fmtDate(saves[name].ts)+'</div>\
-        </div>\
-        <div style="display:flex; gap:6px">\
-          <button data-act="load" data-name="'+name+'" class="btn-primary">Laden</button>\
-          <button data-act="delete" data-name="'+name+'" class="btn-danger">Löschen</button>\
-        </div>\
-      </div>';
-    }).join('');
+    if(!names.length){ loadList.innerHTML = '<div class="scene"><span class="meta">Keine gespeicherten Anordnungen.</span></div>'; return; }
+    loadList.innerHTML = names.map(name => `
+      <div class="scene">
+        <div>
+          <div class="name">${name}</div>
+          <div class="meta">${fmtDate(saves[name].ts)}</div>
+        </div>
+        <button data-act="load" data-name="${name}" class="btn-primary small">Laden</button>
+        <button data-act="delete" data-name="${name}" class="btn-danger small">Löschen</button>
+      </div>
+    `).join('');
   }
 
-  document.getElementById('openSave').addEventListener('click', function(){ openModal(saveModal); renderSaveList(); saveNameInput.value=''; setTimeout(function(){saveNameInput.focus();}, 50); });
-  document.getElementById('openLoad').addEventListener('click', function(){ openModal(loadModal); renderLoadList(); });
-  document.getElementById('closeSave').addEventListener('click', function(){ closeModal(saveModal); });
-  document.getElementById('closeSave2').addEventListener('click', function(){ closeModal(saveModal); });
-  document.getElementById('closeLoad').addEventListener('click', function(){ closeModal(loadModal); });
-  document.getElementById('closeLoad2').addEventListener('click', function(){ closeModal(loadModal); });
+  openSave.addEventListener('click', ()=>{ openModal(saveModal); renderSaveList(); saveNameInput.value=''; setTimeout(()=>saveNameInput.focus(), 50); });
+  openLoad.addEventListener('click', ()=>{ openModal(loadModal); renderLoadList(); });
+  closeSave.addEventListener('click', ()=>{ closeModal(saveModal); });
+  closeSave2.addEventListener('click', ()=>{ closeModal(saveModal); });
+  closeLoad.addEventListener('click', ()=>{ closeModal(loadModal); });
+  closeLoad2.addEventListener('click', ()=>{ closeModal(loadModal); });
 
-  saveNow.addEventListener('click', function(){
-    var name = (saveNameInput.value || '').trim();
+  saveNow.addEventListener('click', ()=>{
+    const name = (saveNameInput.value || '').trim();
     if(!name) return flash('Bitte Namen eingeben');
-    var saves = getSaves();
+    const saves = getSaves();
     if(saves[name] && !confirm('„'+name+'“ überschreiben?')) return;
     saves[name] = collectState();
     setSaves(saves);
@@ -408,22 +486,193 @@
     flash('Gespeichert: '+name);
   });
 
-  saveList.addEventListener('click', function(e){
-    var btn = e.target.closest('button'); if(!btn) return;
-    var act = btn.getAttribute('data-act'); var name = btn.getAttribute('data-name');
-    var saves = getSaves();
+  saveList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const act = btn.dataset.act; const name = btn.dataset.name;
+    const saves = getSaves();
     if(act==='overwrite'){ saves[name] = collectState(); setSaves(saves); renderSaveList(); flash('Überschrieben: '+name); }
+    if(act==='load'){ applyState(saves[name]); closeModal(saveModal); flash('Geladen: '+name); }
     if(act==='delete'){ if(!confirm('„'+name+'“ löschen?')) return; delete saves[name]; setSaves(saves); renderSaveList(); flash('Gelöscht: '+name); }
   });
 
-  loadList.addEventListener('click', function(e){
-    var btn = e.target.closest('button'); if(!btn) return;
-    var act = btn.getAttribute('data-act'); var name = btn.getAttribute('data-name');
-    var saves = getSaves();
+  loadList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const act = btn.dataset.act; const name = btn.dataset.name;
+    const saves = getSaves();
     if(act==='load'){ applyState(saves[name]); closeModal(loadModal); flash('Geladen: '+name); }
     if(act==='delete'){ if(!confirm('„'+name+'“ löschen?')) return; delete saves[name]; setSaves(saves); renderLoadList(); flash('Gelöscht: '+name); }
   });
 
+  // ------- Animation / Timeline -------
+  let timeline = []; // [{name,durMs,state}]
+  let playing = false, loop = false, fps = 30, startTime = 0, pauseAt = 0;
+
+  function setLoop(val){ loop = val; animLoop.checked = val; animLoop2.checked = val; }
+  function setFps(val){ fps = parseInt(val||30,10); animFps.value = fps; animFps2.value = fps; }
+
+  function refreshSceneList(){
+    if(!timeline.length){ sceneList.innerHTML = '<div class="scene"><span class="meta">Noch keine Szenen. Füge oben eine hinzu.</span></div>'; return; }
+    sceneList.innerHTML = timeline.map((sc, idx) => `
+      <div class="scene" data-idx="${idx}">
+        <input class="name" type="text" value="${sc.name}" data-field="name" />
+        <input class="dur" type="number" min="0.2" step="0.1" value="${(sc.durMs/1000).toFixed(1)}" data-field="dur" />
+        <button data-act="up" class="small">↑</button>
+        <button data-act="down" class="small">↓</button>
+        <button data-act="dup" class="small">Dupl.</button>
+        <button data-act="del" class="btn-danger small">Löschen</button>
+      </div>
+    `).join('');
+  }
+
+  function captureScene(defaultName){
+    const st = collectState();
+    return { name: defaultName || (sceneName.value.trim() || ('Szene '+(timeline.length+1))), durMs: Math.max(200, Math.round(parseFloat(sceneDur.value||'2.0')*1000)), state: st };
+  }
+
+  function timelineDurationMs(){ return timeline.reduce((a,b)=>a+b.durMs,0); }
+
+  function applyInterpolated(a, b, t){
+    // Linear tween for players & ball; arrows snap to nearer scene.
+    const state = JSON.parse(JSON.stringify(a.state));
+    // Map players by team+number
+    const mapB = {}; b.state.players.forEach(p => { mapB[p.team+'#'+p.number] = p; });
+    state.players = state.players.map(p => {
+      const key = p.team+'#'+p.number;
+      const q = mapB[key] || p;
+      return { team:p.team, number:p.number, x: p.x + t*(q.x - p.x), y: p.y + t*(q.y - p.y) };
+    });
+    state.ball = {
+      x: a.state.ball.x + t*(b.state.ball.x - a.state.ball.x),
+      y: a.state.ball.y + t*(b.state.ball.y - a.state.ball.y),
+    };
+    // arrows: snap
+    state.arrows = (t < 0.5) ? a.state.arrows : b.state.arrows;
+    state.colors = b.state.colors; // use next colors
+    applyState(state);
+  }
+
+  function playFrom(startMs){
+    if(!timeline.length) return flash('Keine Szenen in der Timeline');
+    playing = true;
+    startTime = performance.now() - startMs;
+    pauseAt = 0;
+    requestAnimationFrame(tick);
+  }
+
+  function pausePlay(){
+    if(!playing) return;
+    playing = false;
+    pauseAt = performance.now() - startTime;
+  }
+
+  function stopPlay(){
+    playing = false;
+    pauseAt = 0;
+    if(timeline.length){ applyState(timeline[0].state); }
+  }
+
+  function tick(now){
+    if(!playing) return;
+    const total = timelineDurationMs();
+    let elapsed = (now - startTime);
+    if(loop){ elapsed = elapsed % total; }
+    else if (elapsed >= total){ playing = false; return; }
+
+    // Find current segment
+    let acc = 0; let idx = 0;
+    for(; idx<timeline.length; idx++){ if(elapsed < acc + timeline[idx].durMs) break; acc += timeline[idx].durMs; }
+    const segT = Math.min(1, Math.max(0, (elapsed - acc) / timeline[idx].durMs));
+    const a = timeline[idx];
+    const b = (idx < timeline.length - 1) ? timeline[idx+1] : timeline[idx]; // last: hold
+    if(a===b){ applyState(a.state); }
+    else { applyInterpolated(a, b, segT); }
+
+    requestAnimationFrame(tick);
+  }
+
+  // Quick controls
+  document.getElementById('sceneAdd').addEventListener('click', ()=>{
+    timeline.push(captureScene());
+    refreshSceneList();
+    flash('Szene hinzugefügt');
+  });
+  document.getElementById('openAnim').addEventListener('click', ()=>{
+    openModal(animModal);
+    refreshSceneList();
+    refreshSeqSelect();
+    document.getElementById('animLoop2').checked = loop;
+    document.getElementById('animFps2').value = String(fps);
+  });
+  document.getElementById('closeAnim').addEventListener('click', ()=>{ closeModal(animModal); });
+
+  // Modal controls
+  document.getElementById('sceneAddModal').addEventListener('click', ()=>{
+    timeline.push(captureScene());
+    refreshSceneList();
+  });
+  sceneList.addEventListener('input', (e)=>{
+    const scEl = e.target.closest('.scene'); if(!scEl) return;
+    const idx = parseInt(scEl.dataset.idx,10);
+    const field = e.target.dataset.field;
+    if(field==='name'){ timeline[idx].name = e.target.value; }
+    if(field==='dur'){ const v = Math.max(0.2, parseFloat(e.target.value||'2.0')); timeline[idx].durMs = Math.round(v*1000); }
+  });
+  sceneList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const scEl = btn.closest('.scene'); const idx = parseInt(scEl.dataset.idx,10);
+    const act = btn.dataset.act;
+    if(act==='up' && idx>0){ const t=timeline[idx]; timeline.splice(idx,1); timeline.splice(idx-1,0,t); refreshSceneList(); }
+    if(act==='down' && idx<timeline.length-1){ const t=timeline[idx]; timeline.splice(idx,1); timeline.splice(idx+1,0,t); refreshSceneList(); }
+    if(act==='dup'){ const copy = JSON.parse(JSON.stringify(timeline[idx])); copy.name += ' (Kopie)'; timeline.splice(idx+1,0,copy); refreshSceneList(); }
+    if(act==='del'){ timeline.splice(idx,1); refreshSceneList(); }
+  });
+
+  function setLoopFrom(el){ setLoop(el.checked); }
+  function setFpsFrom(sel){ setFps(sel.value); }
+  document.getElementById('animLoop').addEventListener('change', e=>setLoopFrom(e.target));
+  document.getElementById('animLoop2').addEventListener('change', e=>setLoopFrom(e.target));
+  document.getElementById('animFps').addEventListener('change', e=>setFpsFrom(e.target));
+  document.getElementById('animFps2').addEventListener('change', e=>setFpsFrom(e.target));
+
+  function currentElapsed(){ return playing ? (performance.now() - startTime) : pauseAt; }
+  function play(){ playFrom( currentElapsed() ); }
+  function pause(){ pausePlay(); }
+  function stop(){ stopPlay(); }
+
+  animPlay.addEventListener('click', play);
+  animPause.addEventListener('click', pause);
+  animStop.addEventListener('click', stop);
+  animPlay2.addEventListener('click', play);
+  animPause2.addEventListener('click', pause);
+  animStop2.addEventListener('click', stop);
+
+  // ------- Sequence Save/Load -------
+  function getSeq(){ try { return JSON.parse(localStorage.getItem(KEY_SEQ)) || {}; } catch(e){ return {}; } }
+  function setSeq(obj){ localStorage.setItem(KEY_SEQ, JSON.stringify(obj)); }
+  function refreshSeqSelect(selected){
+    const seqs = getSeq(); const names = Object.keys(seqs).sort();
+    if(!names.length){ seqSelect.innerHTML = '<option value="">— Keine Sequenzen —</option>'; return; }
+    seqSelect.innerHTML = names.map(n => '<option value="'+n+'">'+n+'</option>').join('');
+    if(selected && seqs[selected]) seqSelect.value = selected;
+  }
+  document.getElementById('seqSave').addEventListener('click', ()=>{
+    const name = (seqName.value||'').trim(); if(!name) return flash('Bitte Sequenznamen eingeben');
+    const seqs = getSeq(); seqs[name] = { timeline }; setSeq(seqs); refreshSeqSelect(name); flash('Sequenz gespeichert: '+name);
+  });
+  document.getElementById('seqLoad').addEventListener('click', ()=>{
+    const name = seqSelect.value; if(!name) return;
+    const seqs = getSeq(); if(!seqs[name]) return;
+    timeline = JSON.parse(JSON.stringify(seqs[name].timeline||[]));
+    refreshSceneList(); flash('Sequenz geladen: '+name);
+  });
+  document.getElementById('seqDelete').addEventListener('click', ()=>{
+    const name = seqSelect.value; if(!name) return;
+    const seqs = getSeq(); if(!seqs[name]) return;
+    if(!confirm('„'+name+'“ löschen?')) return;
+    delete seqs[name]; setSeq(seqs); refreshSeqSelect(); flash('Sequenz gelöscht: '+name);
+  });
+
+  // ---------- Helpers ----------
   function flash(msg){
     var f=document.createElement('div'); f.textContent=msg;
     f.style.position='fixed'; f.style.bottom='16px'; f.style.left='50%'; f.style.transform='translateX(-50%)';
