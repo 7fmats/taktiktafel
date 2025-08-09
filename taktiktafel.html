@@ -498,5 +498,12 @@
   document.getElementById('openLoad').addEventListener('click', ()=>{ openModal(loadModal); renderLoadList(); });
 
 </script>
+
+<script src="auth.js"></script>
+<script>
+Auth.ready.then(() => {
+  Auth.requireAuth("auth.html");
+});
+</script>
 </body>
 </html>
