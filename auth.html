@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Login / Registrierung – TSV Handorf</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      margin-top: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 {
+      text-align: center;
+      color: #004d00;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #004d00;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #007300;
+    }
+    .error {
+      color: red;
+      font-size: 0.9em;
+      margin: 5px 0;
+    }
+    .link {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .link a {
+      color: #004d00;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TSV Handorf Login</h1>
+
+    <form id="loginForm">
+      <h2>Login</h2>
+      <input type="email" id="loginEmail" placeholder="E-Mail" required>
+      <input type="password" id="loginPass" placeholder="Passwort" required>
+      <div class="error" id="loginErr"></div>
+      <button type="submit">Anmelden</button>
+      <div class="link">
+        <a id="pwReset">Passwort vergessen?</a>
+      </div>
+    </form>
+
+    <form id="regForm">
+      <h2>Registrieren</h2>
+      <input type="text" id="regUsername" placeholder="Benutzername" required>
+      <input type="email" id="regEmail" placeholder="E-Mail" required>
+      <input type="password" id="regPass" placeholder="Passwort" required>
+      <div class="error" id="regErr"></div>
+      <button type="submit">Registrieren</button>
+    </form>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    Auth.ready.then(() => {
+      const redirectTo = new URLSearchParams(location.search).get('redirect') || 'index.html';
+
+      // Login
+      document.getElementById('loginForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        try {
+          await Auth.login({
+            email: loginEmail.value.trim(),
+            password: loginPass.value
+          });
+          location.href = redirectTo;
+        } catch (err) {
+          loginErr.textContent = err.message;
+        }
+      });
+
+      // Registrierung
+      document.getElementById('regForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        try {
+          await Auth.register({
+            email: regEmail.value.trim(),
+            password: regPass.value,
+            username: regUsername.value.trim()
+          });
+          location.href = redirectTo;
+        } catch (err) {
+          regErr.textContent = err.message;
+        }
+      });
+
+      // Passwort zurücksetzen
+      document.getElementById('pwReset').addEventListener('click', async e => {
+        e.preventDefault();
+        if (!loginEmail.value) {
+          loginErr.textContent = 'Bitte zuerst E-Mail im Login-Formular eingeben.';
+          return;
+        }
+        try {
+          await Auth.sendPasswordReset(loginEmail.value.trim());
+          loginErr.style.color = 'green';
+          loginErr.textContent = 'Passwort-Reset-E-Mail gesendet.';
+        } catch (err) {
+          loginErr.textContent = err.message;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
