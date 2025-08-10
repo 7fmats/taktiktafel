@@ -1,46 +1,59 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Taktiktafel – TSV Handorf (Fix: Spieler-Render)</title>
+<title>Taktiktafel – TSV Handorf (mit Speichern & Animation)</title>
 <style>
-  :root { --gap: 10px; --card: #ffffff; --border: #e5e7eb; --shadow: 0 6px 26px rgba(0,0,0,.08); }
+  :root {
+    --gap: 10px; --card:#fff; --border:#e5e7eb; --shadow:0 6px 26px rgba(0,0,0,.08);
+    --muted:#64748b; --accent:#10b981; --accent2:#0ea5e9; --danger:#ef4444;
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #f6f7f9;
+    background: #f6f7f9; color:#0f172a;
     display: grid; grid-template-rows: auto auto 1fr; gap: var(--gap);
-    color: #0f172a;
   }
-  header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 10px 12px; }
+  header { display:grid; grid-template-columns: 1fr auto; align-items:center; gap:12px; padding:10px 12px; }
   .brand { display:flex; align-items:center; gap:10px; }
-  .brand h1 { margin:0; font-size: 16px; font-weight: 800; }
+  .brand h1 { margin:0; font-size:16px; font-weight:800; }
   .brand img { width:48px; height:58px; object-fit:contain; }
   .toolbar {
-    display: flex; gap: 8px; align-items: center; padding: 10px 12px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
-    background: var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 12px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity;
+    background:var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
   }
-  .toolbar > * { scroll-snap-align: start; flex: 0 0 auto; }
-  .canvas-outer { padding: 0 12px 12px; min-height: 0; }
-  .board-frame {
-    width: 100%; max-width: 1100px; margin: 0 auto; aspect-ratio: 84 / 105;
-    background: #6aa84f; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
-    position: relative;
-  }
-  @supports (height: 100svh) { .board-frame { height: calc(100svh - 180px); aspect-ratio: auto; } }
-  svg#board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; border-radius: 10px; }
-  #players { pointer-events: none; }
-  #players .player { pointer-events: all; cursor: grab; }
-  #players .player.drag { cursor: grabbing; }
+  .toolbar > * { scroll-snap-align:start; flex:0 0 auto; }
+  .btn { padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#fff; font-weight:700; cursor:pointer; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.blue { background:var(--accent2); color:#fff; border-color:var(--accent2); }
+  .btn.ghost { background:#fafafa; }
+  .btn.danger { background:#fee2e2; border-color:#fecaca; color:#b91c1c; }
+  .select { padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:#fff; }
+  .canvas-outer { padding: 0 12px 12px; min-height:0; }
+  .board-frame { width:100%; max-width:1100px; margin:0 auto; aspect-ratio:84/105;
+    background:#6aa84f; border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); position:relative; }
+  @supports (height: 100svh) { .board-frame { height: calc(100svh - 210px); aspect-ratio:auto; } }
+  svg#board { position:absolute; inset:0; width:100%; height:100%; touch-action:none; border-radius:10px; }
+  #players { pointer-events:none; }
+  #players .player { pointer-events:all; cursor:grab; }
+  #players .player.drag { cursor:grabbing; }
   #players .player text { font-weight:700; font-size:4px; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
   .ball circle { fill:#fff; stroke:#000; stroke-width:0.6; }
-  .hint { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.7); color:#fff; padding: 6px 10px; border-radius: 8px; font-size: 12px; }
-  .ghost { background:#fafafa; border:1px solid var(--border); border-radius:12px; padding:10px 14px; }
-  .btn { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background:#fff; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: pointer; }
-  .btn:active { transform: translateY(1px); }
+  .hint { position:absolute; right:8px; bottom:8px; background:rgba(0,0,0,.7); color:#fff; padding:6px 10px; border-radius:8px; font-size:12px; }
+  /* Modal */
+  .modal { position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.5); padding:12px; z-index:1000; }
+  .modal.open { display:grid; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); padding:14px; width:min(760px, 96vw); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .col { display:grid; gap:8px; }
+  .input { padding:10px 12px; border:1px solid var(--border); border-radius:12px; width:100%; }
+  .list { display:grid; gap:8px; max-height:50vh; overflow:auto; padding:4px; border:1px dashed var(--border); border-radius:12px; }
+  .item { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; border:1px solid var(--border); border-radius:10px; }
+  .muted { color:var(--muted); font-size:12px; }
 </style>
 </head>
 <body>
@@ -56,27 +69,28 @@
     <button id="toggleDraw" class="btn">Pfeil zeichnen</button>
     <button id="clearArrows" class="btn ghost">Pfeile löschen</button>
     <button id="resetPlayers" class="btn ghost">Reset Spieler</button>
-    <button id="rebuildPlayers" class="btn ghost">Rebuild Spieler</button>
 
-    <label for="team1Color" class="ghost">Team 1:
-      <select id="team1Color">
-        <option value="#d32f2f">Rot</option>
-        <option value="#ffd400">Gelb</option>
-        <option value="#2e7d32" selected>Grün</option>
-        <option value="#000000">Schwarz</option>
-        <option value="#ffffff">Weiß</option>
-      </select>
-    </label>
+    <label>Team 1 <select id="team1Color" class="select">
+      <option value="#d32f2f">Rot</option>
+      <option value="#ffd400">Gelb</option>
+      <option value="#2e7d32" selected>Grün</option>
+      <option value="#000000">Schwarz</option>
+      <option value="#ffffff">Weiß</option>
+    </select></label>
 
-    <label for="team2Color" class="ghost">Team 2:
-      <select id="team2Color">
-        <option value="#d32f2f" selected>Rot</option>
-        <option value="#ffd400">Gelb</option>
-        <option value="#2e7d32">Grün</option>
-        <option value="#000000">Schwarz</option>
-        <option value="#ffffff">Weiß</option>
-      </select>
-    </label>
+    <label>Team 2 <select id="team2Color" class="select">
+      <option value="#d32f2f" selected>Rot</option>
+      <option value="#ffd400">Gelb</option>
+      <option value="#2e7d32">Grün</option>
+      <option value="#000000">Schwarz</option>
+      <option value="#ffffff">Weiß</option>
+    </select></label>
+
+    <span style="flex:1 1 auto"></span>
+
+    <button id="openSave" class="btn primary">Speichern…</button>
+    <button id="openLoad" class="btn blue">Laden…</button>
+    <button id="openAnim" class="btn ghost">Animation…</button>
   </div>
 
   <div class="canvas-outer">
@@ -109,177 +123,379 @@
     </div>
   </div>
 
-  <!-- Auth loader (optional; Seite funktioniert auch ohne, aber wir warten, falls vorhanden) -->
+  <!-- Modals: Save / Load / Animation -->
+  <div class="modal" id="modalSave">
+    <div class="card">
+      <h3>Arrangement speichern</h3>
+      <div class="col">
+        <input id="saveName" class="input" placeholder="Name (z. B. Greven – Pressing Variante A)" />
+        <div class="row">
+          <button id="saveNow" class="btn primary">Speichern</button>
+          <button class="btn" onclick="closeModal('modalSave')">Schließen</button>
+        </div>
+        <div class="muted">Hinweis: gleicher Name überschreibt vorhandenes Arrangement.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalLoad">
+    <div class="card">
+      <h3>Arrangements laden / verwalten</h3>
+      <div class="list" id="plansList"></div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn" onclick="closeModal('modalLoad')">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalAnim">
+    <div class="card">
+      <h3>Animation</h3>
+      <div class="row" style="gap:12px; flex-wrap:wrap;">
+        <button id="animCapture" class="btn">Frame aufnehmen</button>
+        <label>Dauer pro Frame (ms) <input id="animMs" class="input" type="number" value="800" style="width:120px"></label>
+        <button id="animPlay" class="btn blue">Abspielen</button>
+        <button id="animStop" class="btn danger">Stop</button>
+      </div>
+      <div class="row" style="margin-top:8px; gap:12px;">
+        <input id="animName" class="input" placeholder="Animationsname (z. B. Aufbauspiel rechts)" />
+        <button id="animSave" class="btn primary">Animation speichern</button>
+      </div>
+      <div class="list" id="framesList" style="margin-top:8px;"></div>
+      <h4 style="margin:10px 0 0">Gespeicherte Animationen</h4>
+      <div class="list" id="animsList"></div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn" onclick="closeModal('modalAnim')">Schließen</button>
+      </div>
+    </div>
+  </div>
+
   <script src="auth.js"></script>
   <script>
-  document.addEventListener('DOMContentLoaded', () => initAfterAuth());
+  // --- Auth gate (optional) ---
+  if (window.Auth) { Auth.ready.then(() => Auth.requireAuth('auth.html')); }
 
-  function initAfterAuth() {
-    if (window.Auth && Auth.ready) {
-      Auth.ready.then(() => {
-        // wenn Guard aktiv ist, kommt der User hier nur an, wenn eingeloggt
-        Auth.onAuth((user) => {
-          if (!user) return; // Guard/Redirect handled elsewhere
-          buildOnce();
-        });
-        // Fallback: wenn nach 800ms immer noch nix gerendert ist → trotzdem bauen
-        setTimeout(() => { if (!document.querySelector('#players').children.length) buildOnce(); }, 800);
-      });
-    } else {
-      // Kein Auth → sofort bauen
-      buildOnce();
-    }
+  // --- State & helpers ---
+  const KEY_PLANS = 'tsv_tactics_plans_v2';
+  const KEY_ANIMS = 'tsv_tactics_anims_v2';
+
+  const svg = document.getElementById('board');
+  const playersG = document.getElementById('players');
+  const ballG = document.getElementById('ball');
+  const arrowsG = document.getElementById('arrows');
+  const PITCH_H = 105;
+
+  const btnDraw = document.getElementById('toggleDraw');
+  const btnClear = document.getElementById('clearArrows');
+  const btnReset = document.getElementById('resetPlayers');
+  const btnOpenSave = document.getElementById('openSave');
+  const btnOpenLoad = document.getElementById('openLoad');
+  const btnOpenAnim = document.getElementById('openAnim');
+
+  const team1Sel = document.getElementById('team1Color');
+  const team2Sel = document.getElementById('team2Color');
+
+  let drawMode = false;
+  btnDraw.addEventListener('click', () => { drawMode = !drawMode; btnDraw.classList.toggle('ghost', !drawMode); });
+
+  // --- Geometry helpers ---
+  function svgPoint(evt) {
+    const pt = svg.createSVGPoint();
+    if (evt.touches && evt.touches[0]) { pt.x = evt.touches[0].clientX; pt.y = evt.touches[0].clientY; }
+    else { pt.x = evt.clientX; pt.y = evt.clientY; }
+    const m = svg.getScreenCTM().inverse();
+    return pt.matrixTransform(m);
   }
 
-  let built = false;
-  function buildOnce() {
-    if (built) return;
-    built = true;
-    initBoard();
-    // Falls trotzdem leer: Notfall-Rebuild-Knopf
-    setTimeout(() => { if (!document.querySelector('#players').children.length) initPlayers(); }, 200);
+  function setTeamColor(team, color) {
+    const groups = playersG.querySelectorAll('.player.'+team);
+    groups.forEach(g => {
+      const c = g.querySelector('circle'); const t = g.querySelector('text');
+      c.setAttribute('fill', color);
+      const lc = color.toLowerCase(); const bright = (lc === '#ffffff' || lc === '#ffd400');
+      t.setAttribute('fill', bright ? '#000' : '#fff');
+      c.setAttribute('stroke', bright ? '#000' : 'none');
+      c.setAttribute('stroke-width', bright ? '0.3' : '0');
+    });
+  }
+  team1Sel.addEventListener('change', (e)=> setTeamColor('team1', e.target.value));
+  team2Sel.addEventListener('change', (e)=> setTeamColor('team2', e.target.value));
+
+  function makeDraggable(g) {
+    let dragging = false, dx=0, dy=0;
+    function getCenter(){ const c=g.querySelector('circle'); return {cx:+c.getAttribute('cx'), cy:+c.getAttribute('cy')}; }
+    function setCenter(x,y){ const c=g.querySelector('circle'), t=g.querySelector('text'); c.setAttribute('cx',x); c.setAttribute('cy',y); if(t){t.setAttribute('x',x); t.setAttribute('y',y);} }
+    function start(evt){
+      if (drawMode) return;
+      evt.preventDefault();
+      const p=svgPoint(evt), ctr=getCenter(); dx=p.x-ctr.cx; dy=p.y-ctr.cy; dragging=true;
+      g.classList.add('drag');
+      window.addEventListener('mousemove', move, {passive:false});
+      window.addEventListener('mouseup', end, {passive:false});
+      window.addEventListener('touchmove', move, {passive:false});
+      window.addEventListener('touchend', end, {passive:false});
+      window.addEventListener('touchcancel', end, {passive:false});
+    }
+    function move(evt){
+      if(!dragging) return; evt.preventDefault();
+      const p=svgPoint(evt); setCenter(p.x-dx, p.y-dy);
+    }
+    function end(){
+      dragging=false; g.classList.remove('drag');
+      window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
+      window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', end);
+    }
+    g.addEventListener('mousedown', start, {passive:false});
+    g.addEventListener('touchstart', start, {passive:false});
   }
 
-  function initBoard() {
-    const svg = document.getElementById('board');
-    const playersG = document.getElementById('players');
-    const ballG = document.getElementById('ball');
-    const arrowsG = document.getElementById('arrows');
+  function createPlayer(team, number, x, y) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.classList.add('player', team);
+    g.setAttribute('data-team', team);
+    g.setAttribute('data-number', number);
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('r', 2.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', x); t.setAttribute('y', y); t.textContent = number;
+    g.appendChild(c); g.appendChild(t);
+    makeDraggable(g); playersG.appendChild(g);
+    return g;
+  }
 
-    const btnDraw = document.getElementById('toggleDraw');
-    const btnClear = document.getElementById('clearArrows');
-    const btnReset = document.getElementById('resetPlayers');
-    const btnRebuild = document.getElementById('rebuildPlayers');
+  function initPlayers() {
+    playersG.innerHTML = '';
+    for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team1', i, 4, y); }
+    for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team2', i, 80, y); }
+    setTeamColor('team1', team1Sel.value);
+    setTeamColor('team2', team2Sel.value);
+  }
 
-    const team1Sel = document.getElementById('team1Color');
-    const team2Sel = document.getElementById('team2Color');
+  function createBall(x, y) {
+    ballG.innerHTML = '';
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.classList.add('ball');
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('r', 1.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
+    g.appendChild(c); makeDraggable(g); ballG.appendChild(g);
+    return g;
+  }
 
-    const PITCH_H = 105;
+  // --- Arrows drawing ---
+  let temp=null;
+  function beginArrow(evt){
+    const active = drawMode && !btnDraw.classList.contains('ghost');
+    if(!active) return; evt.preventDefault();
+    const p = svgPoint(evt);
+    temp = document.createElementNS('http://www.w3.org/2000/svg','line');
+    temp.setAttribute('x1',p.x); temp.setAttribute('y1',p.y); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y);
+    temp.setAttribute('stroke','black'); temp.setAttribute('stroke-width','0.6'); temp.setAttribute('marker-end','url(#arrowhead)');
+    arrowsG.appendChild(temp);
+    window.addEventListener('mousemove', drawArrow, {passive:false});
+    window.addEventListener('mouseup', finishArrow, {passive:false});
+    window.addEventListener('touchmove', drawArrow, {passive:false});
+    window.addEventListener('touchend', finishArrow, {passive:false});
+    window.addEventListener('touchcancel', finishArrow, {passive:false});
+  }
+  function drawArrow(evt){ if(!temp) return; evt.preventDefault(); const p=svgPoint(evt); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y); }
+  function finishArrow(evt){ if(!temp) return; evt.preventDefault(); temp=null;
+    window.removeEventListener('mousemove', drawArrow);
+    window.removeEventListener('mouseup', finishArrow);
+    window.removeEventListener('touchmove', drawArrow);
+    window.removeEventListener('touchend', finishArrow);
+    window.removeEventListener('touchcancel', finishArrow);
+  }
+  svg.addEventListener('mousedown', beginArrow, {passive:false});
+  svg.addEventListener('touchstart', beginArrow, {passive:false});
+  document.getElementById('clearArrows').addEventListener('click', ()=>{ while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild); });
 
-    let drawMode = false;
-    let team1Color = team1Sel.value;
-    let team2Color = team2Sel.value;
+  // --- Reset ---
+  document.getElementById('resetPlayers').addEventListener('click', ()=>{
+    initPlayers(); const bc=document.querySelector('#ball circle');
+    if(bc){ bc.setAttribute('cx',42); bc.setAttribute('cy',52.5); }
+    while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild);
+  });
 
-    btnDraw.addEventListener('click', () => { drawMode = !drawMode; btnDraw.classList.toggle('ghost', !drawMode); });
-    btnRebuild.addEventListener('click', () => initPlayers());
+  // --- Save/Load Arrangements ---
+  function openModal(id){ document.getElementById(id).classList.add('open'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+  window.closeModal = closeModal;
 
-    function svgPoint(evt) {
-      const pt = svg.createSVGPoint();
-      if (evt.touches && evt.touches[0]) { pt.x = evt.touches[0].clientX; pt.y = evt.touches[0].clientY; }
-      else { pt.x = evt.clientX; pt.y = evt.clientY; }
-      const m = svg.getScreenCTM().inverse();
-      return pt.matrixTransform(m);
-    }
+  document.getElementById('openSave').addEventListener('click', ()=> openModal('modalSave'));
+  document.getElementById('openLoad').addEventListener('click', ()=> { renderPlans(); openModal('modalLoad'); });
 
-    function setTeamColor(team, color) {
-      const groups = playersG.querySelectorAll('.player.'+team);
-      groups.forEach(g => {
-        const c = g.querySelector('circle');
-        const t = g.querySelector('text');
-        c.setAttribute('fill', color);
-        const lc = color.toLowerCase();
-        const bright = (lc === '#ffffff' || lc === '#ffd400');
-        t.setAttribute('fill', bright ? '#000' : '#fff');
-        c.setAttribute('stroke', bright ? '#000' : 'none');
-        c.setAttribute('stroke-width', bright ? '0.3' : '0');
-      });
-    }
-    team1Sel.addEventListener('change', (e)=>{ setTeamColor('team1', e.target.value); });
-    team2Sel.addEventListener('change', (e)=>{ setTeamColor('team2', e.target.value); });
+  function getPlanState(){
+    const players = Array.from(playersG.querySelectorAll('.player')).map(g => ({
+      team: g.getAttribute('data-team'),
+      number: +g.getAttribute('data-number'),
+      cx: +g.querySelector('circle').getAttribute('cx'),
+      cy: +g.querySelector('circle').getAttribute('cy')
+    }));
+    const ball = (function(){ const c = ballG.querySelector('circle'); return c ? {cx:+c.getAttribute('cx'), cy:+c.getAttribute('cy')} : null; })();
+    const arrows = Array.from(arrowsG.querySelectorAll('line')).map(l => ({
+      x1:+l.getAttribute('x1'), y1:+l.getAttribute('y1'), x2:+l.getAttribute('x2'), y2:+l.getAttribute('y2')
+    }));
+    return { players, ball, arrows, t1: team1Sel.value, t2: team2Sel.value };
+  }
 
-    function makeDraggable(g) {
-      let dragging = false, dx=0, dy=0;
-      function getCenter(){ const c=g.querySelector('circle'); return {cx:parseFloat(c.getAttribute('cx')), cy:parseFloat(c.getAttribute('cy'))}; }
-      function setCenter(x,y){ const c=g.querySelector('circle'), t=g.querySelector('text'); c.setAttribute('cx',x); c.setAttribute('cy',y); if(t){t.setAttribute('x',x); t.setAttribute('y',y);} }
-      function start(evt){
-        if (drawMode) return;
-        evt.preventDefault();
-        const p=svgPoint(evt), ctr=getCenter(); dx=p.x-ctr.cx; dy=p.y-ctr.cy; dragging=true;
-        g.classList.add('drag');
-        window.addEventListener('mousemove', move, {passive:false});
-        window.addEventListener('mouseup', end, {passive:false});
-        window.addEventListener('touchmove', move, {passive:false});
-        window.addEventListener('touchend', end, {passive:false});
-        window.addEventListener('touchcancel', end, {passive:false});
-      }
-      function move(evt){
-        if(!dragging) return; evt.preventDefault();
-        const p=svgPoint(evt); setCenter(p.x-dx, p.y-dy);
-      }
-      function end(){ dragging=false; g.classList.remove('drag');
-        window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
-        window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', end);
-      }
-      g.addEventListener('mousedown', start, {passive:false});
-      g.addEventListener('touchstart', start, {passive:false});
-    }
-
-    window.initPlayers = function(){  // idempotent rebuild
-      playersG.innerHTML = '';
-      for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team1', i, 4, y); }
-      for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team2', i, 80, y); }
-      setTeamColor('team1', team1Sel.value);
-      setTeamColor('team2', team2Sel.value);
-    };
-
-    function createPlayer(team, number, x, y) {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.classList.add('player', team);
-      g.setAttribute('data-team', team);
-      g.setAttribute('data-number', number);
-      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('r', 2.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
-      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      t.setAttribute('x', x); t.setAttribute('y', y); t.textContent = number;
-      g.appendChild(c); g.appendChild(t);
-      makeDraggable(g);
-      playersG.appendChild(g);
-      return g;
-    }
-
-    function createBall(x, y) {
-      ballG.innerHTML = '';
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.classList.add('ball');
-      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('r', 1.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
-      g.appendChild(c); makeDraggable(g); ballG.appendChild(g); return g;
-    }
-
-    // Initial populate
+  function applyPlan(state){
     initPlayers();
-    createBall(42,52.5);
+    // colors
+    team1Sel.value = state.t1 || team1Sel.value;
+    team2Sel.value = state.t2 || team2Sel.value;
+    setTeamColor('team1', team1Sel.value);
+    setTeamColor('team2', team2Sel.value);
+    // positions
+    const map = new Map();
+    Array.from(playersG.querySelectorAll('.player')).forEach(g => map.set(g.getAttribute('data-team')+'-'+g.getAttribute('data-number'), g));
+    (state.players||[]).forEach(p => {
+      const key = p.team+'-'+p.number; const g = map.get(key);
+      if(g){ const c=g.querySelector('circle'), t=g.querySelector('text'); c.setAttribute('cx',p.cx); c.setAttribute('cy',p.cy); t.setAttribute('x',p.cx); t.setAttribute('y',p.cy); }
+    });
+    // ball
+    const bc = ballG.querySelector('circle'); if (bc && state.ball) { bc.setAttribute('cx',state.ball.cx); bc.setAttribute('cy',state.ball.cy); }
+    // arrows
+    while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild);
+    (state.arrows||[]).forEach(a => {
+      const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',a.x1); l.setAttribute('y1',a.y1); l.setAttribute('x2',a.x2); l.setAttribute('y2',a.y2);
+      l.setAttribute('stroke','black'); l.setAttribute('stroke-width','0.6'); l.setAttribute('marker-end','url(#arrowhead)');
+      arrowsG.appendChild(l);
+    });
+  }
 
-    // Drawing arrows
-    let temp=null;
-    function beginArrow(evt){
-      const drawMode = !document.getElementById('toggleDraw').classList.contains('ghost');
-      if(!drawMode) return; evt.preventDefault();
-      const p = svgPoint(evt);
-      temp = document.createElementNS('http://www.w3.org/2000/svg','line');
-      temp.setAttribute('x1',p.x); temp.setAttribute('y1',p.y); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y);
-      temp.setAttribute('stroke','black'); temp.setAttribute('stroke-width','0.6'); temp.setAttribute('marker-end','url(#arrowhead)');
-      arrowsG.appendChild(temp);
-      window.addEventListener('mousemove', drawArrow, {passive:false});
-      window.addEventListener('mouseup', finishArrow, {passive:false});
-      window.addEventListener('touchmove', drawArrow, {passive:false});
-      window.addEventListener('touchend', finishArrow, {passive:false});
-      window.addEventListener('touchcancel', finishArrow, {passive:false});
-    }
-    function drawArrow(evt){ if(!temp) return; evt.preventDefault(); const p=svgPoint(evt); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y); }
-    function finishArrow(evt){ if(!temp) return; evt.preventDefault(); temp=null;
-      window.removeEventListener('mousemove', drawArrow);
-      window.removeEventListener('mouseup', finishArrow);
-      window.removeEventListener('touchmove', drawArrow);
-      window.removeEventListener('touchend', finishArrow);
-      window.removeEventListener('touchcancel', finishArrow);
-    }
-    svg.addEventListener('mousedown', beginArrow, {passive:false});
-    svg.addEventListener('touchstart', beginArrow, {passive:false});
+  function loadPlans(){ try { return JSON.parse(localStorage.getItem(KEY_PLANS)) || []; } catch(e) { return []; } }
+  function savePlans(list){ localStorage.setItem(KEY_PLANS, JSON.stringify(list)); }
 
-    // Buttons
-    document.getElementById('clearArrows').addEventListener('click', ()=>{ const arrowsG = document.getElementById('arrows'); while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild); });
-    document.getElementById('resetPlayers').addEventListener('click', ()=>{ initPlayers(); const bc=document.querySelector('#ball circle'); if(bc){ bc.setAttribute('cx',42); bc.setAttribute('cy',52.5); } const arrowsG = document.getElementById('arrows'); while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild); });
+  document.getElementById('saveNow').addEventListener('click', ()=>{
+    const name = (document.getElementById('saveName').value || '').trim();
+    if(!name) return alert('Bitte einen Namen vergeben.');
+    const list = loadPlans();
+    const data = getPlanState();
+    const idx = list.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+    if (idx >= 0) list[idx] = { name, data, updatedAt: Date.now() };
+    else list.push({ name, data, updatedAt: Date.now() });
+    savePlans(list);
+    document.getElementById('saveName').value = '';
+    closeModal('modalSave');
+  });
+
+  function renderPlans(){
+    const list = loadPlans().sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
+    const box = document.getElementById('plansList'); box.innerHTML = '';
+    if(!list.length){ box.innerHTML = '<div class="muted">Noch keine Arrangements gespeichert.</div>'; return; }
+    list.forEach((p,i)=>{
+      const row = document.createElement('div'); row.className='item';
+      row.innerHTML = '<div><b>'+escapeHtml(p.name)+'</b><div class="muted">'+new Date(p.updatedAt).toLocaleString()+'</div></div>' +
+        '<div class="row"><button class="btn" data-i="'+i+'" data-act="load">Laden</button>' +
+        '<button class="btn danger" data-i="'+i+'" data-act="del">Löschen</button></div>';
+      box.appendChild(row);
+    });
+    box.addEventListener('click', planClick);
+  }
+  function planClick(e){
+    const b = e.target.closest('button'); if(!b) return;
+    const i = +b.getAttribute('data-i'); const act=b.getAttribute('data-act');
+    const list = loadPlans();
+    if (act==='load'){ applyPlan(list[i].data); closeModal('modalLoad'); }
+    if (act==='del'){ if(confirm('Arrangement löschen?')){ list.splice(i,1); savePlans(list); renderPlans(); } }
+  }
+
+  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]); }
+
+  // --- Animation builder ---
+  let frames = []; // array of states
+  let playTimer = null;
+
+  function renderFrames(){
+    const box = document.getElementById('framesList'); box.innerHTML='';
+    if(!frames.length){ box.innerHTML='<div class="muted">Keine Frames. Mit „Frame aufnehmen“ den aktuellen Zustand hinzufügen.</div>'; return; }
+    frames.forEach((fr,idx)=>{
+      const row = document.createElement('div'); row.className='item';
+      row.innerHTML = '<div><b>Frame '+(idx+1)+'</b></div>' +
+        '<div class="row">' +
+        '<button class="btn" data-i="'+idx+'" data-act="up">▲</button>' +
+        '<button class="btn" data-i="'+idx+'" data-act="down">▼</button>' +
+        '<button class="btn danger" data-i="'+idx+'" data-act="del">Löschen</button>' +
+        '</div>';
+      box.appendChild(row);
+    });
+    box.addEventListener('click', frameClick);
+  }
+  function frameClick(e){
+    const b = e.target.closest('button'); if(!b) return;
+    const i = +b.getAttribute('data-i'); const act=b.getAttribute('data-act');
+    if (act==='del'){ frames.splice(i,1); renderFrames(); return; }
+    if (act==='up' && i>0){ const t=frames[i]; frames[i]=frames[i-1]; frames[i-1]=t; renderFrames(); return; }
+    if (act==='down' && i<frames.length-1){ const t=frames[i]; frames[i]=frames[i+1]; frames[i+1]=t; renderFrames(); return; }
+  }
+
+  document.getElementById('animCapture').addEventListener('click', ()=>{ frames.push(getPlanState()); renderFrames(); });
+  document.getElementById('animPlay').addEventListener('click', ()=>{
+    if(!frames.length) return alert('Keine Frames vorhanden.');
+    const ms = Math.max(100, +document.getElementById('animMs').value || 800);
+    let i=0; clearInterval(playTimer);
+    applyPlan(frames[0]);
+    playTimer = setInterval(()=>{
+      i = (i+1) % frames.length;
+      applyPlan(frames[i]);
+    }, ms);
+  });
+  document.getElementById('animStop').addEventListener('click', ()=>{ clearInterval(playTimer); });
+
+  function loadAnims(){ try { return JSON.parse(localStorage.getItem(KEY_ANIMS)) || []; } catch(e) { return []; } }
+  function saveAnims(list){ localStorage.setItem(KEY_ANIMS, JSON.stringify(list)); }
+
+  document.getElementById('animSave').addEventListener('click', ()=>{
+    const name = (document.getElementById('animName').value || '').trim();
+    if(!name) return alert('Bitte einen Animationsnamen vergeben.');
+    if(!frames.length) return alert('Keine Frames zum Speichern.');
+    const list = loadAnims();
+    const idx = list.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+    const obj = { name, frames, updatedAt: Date.now() };
+    if (idx >= 0) list[idx] = obj; else list.push(obj);
+    saveAnims(list); document.getElementById('animName').value=''; renderAnims();
+  });
+
+  function renderAnims(){
+    const list = loadAnims().sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
+    const box = document.getElementById('animsList'); box.innerHTML='';
+    if(!list.length){ box.innerHTML='<div class="muted">Noch keine Animationen gespeichert.</div>'; return; }
+    list.forEach((a,i)=>{
+      const row = document.createElement('div'); row.className='item';
+      row.innerHTML = '<div><b>'+escapeHtml(a.name)+'</b><div class="muted">'+new Date(a.updatedAt).toLocaleString()+'</div></div>' +
+        '<div class="row">' +
+        '<button class="btn" data-i="'+i+'" data-act="load">Laden</button>' +
+        '<button class="btn danger" data-i="'+i+'" data-act="del">Löschen</button>' +
+        '</div>';
+      box.appendChild(row);
+    });
+    box.addEventListener('click', animClick);
+  }
+  function animClick(e){
+    const b = e.target.closest('button'); if(!b) return;
+    const i = +b.getAttribute('data-i'); const act=b.getAttribute('data-act');
+    const list = loadAnims();
+    if (act==='load'){ frames = list[i].frames.slice(); renderFrames(); }
+    if (act==='del'){ if(confirm('Animation löschen?')){ list.splice(i,1); saveAnims(list); renderAnims(); } }
+  }
+
+  // --- Modal open actions ---
+  document.getElementById('openAnim').addEventListener('click', ()=>{ renderFrames(); renderAnims(); openModal('modalAnim'); });
+
+  // --- Boot ---
+  function boot(){
+    initPlayers(); createBall(42,52.5);
+    // self-heal if needed
+    setTimeout(()=>{ if(!playersG.children.length) initPlayers(); }, 200);
+  }
+
+  if (window.Auth) {
+    Auth.ready.then(()=>{ Auth.onAuth(u => { if(u) boot(); }); });
+    // fallback if guard not active
+    setTimeout(()=>{ if(!playersG.children.length) boot(); }, 800);
+  } else {
+    document.addEventListener('DOMContentLoaded', boot);
   }
   </script>
 </body>
