@@ -8,7 +8,7 @@
 <style>
   .canvas-outer{padding:12px}
   .board-frame{width:100%;max-width:1100px;margin:0 auto;aspect-ratio:84/105;background:#6aa84f;border:1px solid #e5e7eb;border-radius:10px;box-shadow:var(--shadow);position:relative}
-  @supports(height:100svh){.board-frame{height:calc(100svh - 260px);aspect-ratio:auto}}
+  @supports(height:100svh){.board-frame{height:calc(100svh - 300px);aspect-ratio:auto}}
   svg#board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;border-radius:10px}
   #players{pointer-events:none}
   #players .player{pointer-events:all;cursor:grab}
@@ -16,6 +16,8 @@
   #players .player text{font-weight:700;font-size:4px;text-anchor:middle;dominant-baseline:central;pointer-events:none}
   .ball circle{fill:#fff;stroke:#000;stroke-width:.6}
   .hint{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.7);color:#fff;padding:6px 10px;border-radius:8px;font-size:12px}
+
+  /* Save/Load Modals (bleiben modal) */
   .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.5);padding:12px;z-index:1000}
   .modal.open{display:grid}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:var(--shadow);padding:14px;width:min(760px,96vw)}
@@ -23,9 +25,38 @@
   .col{display:grid;gap:8px}
   .list{display:grid;gap:8px;max-height:50vh;overflow:auto;padding:4px;border:1px dashed #e5e7eb;border-radius:12px}
   .item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid #e5e7eb;border-radius:10px}
+
+  /* Animation Dock (nicht modal) */
+  .anim-dock{
+    position:fixed; left:12px; right:12px; bottom:12px; z-index:900;
+    background:#fff; border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
+    display:grid; grid-template-rows:auto 1fr; max-height:45svh; overflow:hidden;
+  }
+  .anim-dock.collapsed{grid-template-rows:auto; max-height:unset}
+  .anim-head{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fafafa; border-bottom:1px solid var(--border);
+  }
+  .anim-title{font-weight:900}
+  .anim-body{display:grid; grid-template-columns: 1fr 260px; gap:12px; padding:12px}
+  @media(max-width:900px){ .anim-body{grid-template-columns:1fr} }
+  .frames{
+    display:grid; gap:8px;
+  }
+  .frames-list{
+    display:grid; gap:8px; grid-auto-rows:minmax(44px,auto);
+    max-height:26svh; overflow:auto; border:1px dashed var(--border); padding:6px; border-radius:12px;
+  }
+  .frame-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px; border:1px solid var(--border); border-radius:10px; background:#fff;
+  }
+  .anim-controls{display:grid; gap:8px}
+  .anim-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+  .anim-toggle{margin-left:auto}
 </style>
 </head>
 <body data-feature="Taktiktafel">
+  <!-- Header -->
   <header class="app-header">
     <div class="left"><a href="index.html" class="btn btn-yellow">Startseite</a></div>
     <div class="right brand-pack">
@@ -34,6 +65,7 @@
     </div>
   </header>
 
+  <!-- Toolbar -->
   <div class="container">
     <div class="toolbar" role="toolbar" aria-label="Werkzeuge">
       <button id="toggleDraw" class="btn btn-ghost">Pfeil zeichnen</button>
@@ -56,10 +88,13 @@
       <span style="flex:1 1 auto"></span>
       <button id="openSave" class="btn btn-yellow">Speichern…</button>
       <button id="openLoad" class="btn btn-blue">Laden…</button>
-      <button id="openAnim" class="btn btn-ghost">Animation…</button>
+
+      <!-- Dock Toggle -->
+      <button id="toggleDock" class="btn btn-green">Animation</button>
     </div>
   </div>
 
+  <!-- Spielfeld -->
   <div class="canvas-outer">
     <div class="board-frame">
       <svg id="board" viewBox="0 0 84 105" preserveAspectRatio="xMidYMid meet">
@@ -86,11 +121,11 @@
           </marker>
         </defs>
       </svg>
-      <div class="hint">Tipp: Pfeil-Modus aktivieren, dann im Feld tippen & ziehen.</div>
+      <div class="hint">Tipp: Pfeil-Modus aktivieren, dann im Feld tippen &amp; ziehen.</div>
     </div>
   </div>
 
-  <!-- Save -->
+  <!-- Save / Load Modals -->
   <div class="modal" id="modalSave">
     <div class="card">
       <h3>Arrangement speichern</h3>
@@ -104,7 +139,6 @@
       </div>
     </div>
   </div>
-  <!-- Load -->
   <div class="modal" id="modalLoad">
     <div class="card">
       <h3>Arrangements laden / verwalten</h3>
@@ -114,95 +148,270 @@
       </div>
     </div>
   </div>
-  <!-- Animation -->
-  <div class="modal" id="modalAnim">
-    <div class="card">
-      <h3>Animation</h3>
-      <div class="row" style="gap:12px;flex-wrap:wrap;">
-        <button id="animCapture" class="btn">Frame aufnehmen</button>
-        <label>Dauer pro Frame (ms) <input id="animMs" class="input" type="number" value="800" style="width:120px"></label>
-        <button id="animPlay" class="btn btn-blue">Abspielen</button>
-        <button id="animStop" class="btn btn-ghost">Stop</button>
-      </div>
-      <div class="row" style="margin-top:8px;gap:12px;">
-        <input id="animName" class="input" placeholder="Animationsname (z. B. Aufbauspiel rechts)" />
-        <button id="animSave" class="btn btn-yellow">Animation speichern</button>
-      </div>
-      <div class="list" id="framesList" style="margin-top:8px;"></div>
-      <h4 style="margin:10px 0 0">Gespeicherte Animationen</h4>
-      <div class="list" id="animsList"></div>
-      <div class="row" style="margin-top:8px;">
-        <button class="btn" onclick="closeModal('modalAnim')">Schließen</button>
+
+  <!-- Animation Dock -->
+  <section id="animDock" class="anim-dock collapsed" aria-label="Animation">
+    <div class="anim-head">
+      <span class="anim-title">Animation</span>
+      <div class="anim-toggle" style="margin-left:auto">
+        <button id="dockCollapse" class="btn btn-ghost" title="Ein-/Ausklappen">▲</button>
       </div>
     </div>
-  </div>
+    <div class="anim-body">
+      <div class="frames">
+        <div class="anim-row">
+          <button id="animCapture" class="btn">Frame aufnehmen</button>
+          <button id="animPlay" class="btn btn-blue">Abspielen</button>
+          <button id="animStop" class="btn btn-ghost">Stop</button>
+          <label style="display:flex;align-items:center;gap:6px">ms/Frame
+            <input id="animMs" class="input" type="number" value="800" style="width:120px">
+          </label>
+        </div>
+        <div id="framesList" class="frames-list"></div>
+      </div>
+
+      <div class="anim-controls">
+        <div class="anim-row">
+          <input id="animName" class="input" placeholder="Animationsname (z. B. Aufbauspiel rechts)">
+        </div>
+        <div class="anim-row">
+          <button id="animSave" class="btn btn-yellow">Animation speichern</button>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border)">
+        <div class="anim-row">
+          <select id="animSelect" class="input" style="width:100%"></select>
+        </div>
+        <div class="anim-row">
+          <button id="animLoad" class="btn">Auswahl laden</button>
+          <button id="animDelete" class="btn btn-ghost">Auswahl löschen</button>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <script src="auth.js"></script>
   <script>
   if (window.Auth) { Auth.ready.then(() => Auth.requireAuth('auth.html')); }
 
+  /* ====== STATE / SVG ====== */
   const KEY_PLANS='tsv_tactics_plans_v2', KEY_ANIMS='tsv_tactics_anims_v2';
   const svg=document.getElementById('board'), playersG=document.getElementById('players'), ballG=document.getElementById('ball'), arrowsG=document.getElementById('arrows');
-  const PITCH_H=105, team1Sel=document.getElementById('team1Color'), team2Sel=document.getElementById('team2Color');
-  let drawMode=false; document.getElementById('toggleDraw').addEventListener('click',()=>{drawMode=!drawMode});
-  function svgPoint(evt){const pt=svg.createSVGPoint(); if(evt.touches&&evt.touches[0]){pt.x=evt.touches[0].clientX;pt.y=evt.touches[0].clientY;}else{pt.x=evt.clientX;pt.y=evt.clientY;} const m=svg.getScreenCTM().inverse(); return pt.matrixTransform(m);}
-  function setTeamColor(team,color){playersG.querySelectorAll('.player.'+team).forEach(g=>{const c=g.querySelector('circle'),t=g.querySelector('text'); c.setAttribute('fill',color); const lc=color.toLowerCase(),bright=(lc==='#ffffff'||lc==='#ffd400'); t.setAttribute('fill',bright?'#000':'#fff'); c.setAttribute('stroke',bright?'#000':'none'); c.setAttribute('stroke-width',bright?'0.3':'0');});}
-  team1Sel.addEventListener('change',e=>setTeamColor('team1',e.target.value)); team2Sel.addEventListener('change',e=>setTeamColor('team2',e.target.value));
-  function makeDraggable(g){let dragging=false,dx=0,dy=0;function getC(){const c=g.querySelector('circle');return{cx:+c.getAttribute('cx'),cy:+c.getAttribute('cy')}}function setC(x,y){const c=g.querySelector('circle'),t=g.querySelector('text');c.setAttribute('cx',x);c.setAttribute('cy',y);if(t){t.setAttribute('x',x);t.setAttribute('y',y);}}function start(evt){if(drawMode)return;evt.preventDefault();const p=svgPoint(evt),ctr=getC();dx=p.x-ctr.cx;dy=p.y-ctr.cy;dragging=true;g.classList.add('drag');window.addEventListener('mousemove',move,{passive:false});window.addEventListener('mouseup',end,{passive:false});window.addEventListener('touchmove',move,{passive:false});window.addEventListener('touchend',end,{passive:false});window.addEventListener('touchcancel',end,{passive:false});}
-    function move(evt){if(!dragging)return;evt.preventDefault();const p=svgPoint(evt);setC(p.x-dx,p.y-dy);}
-    function end(){dragging=false;g.classList.remove('drag');window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',end);
-      window.removeEventListener('touchmove',move);window.removeEventListener('touchend',end);window.removeEventListener('touchcancel',end);}
-    g.addEventListener('mousedown',start,{passive:false}); g.addEventListener('touchstart',start,{passive:false});}
-  function createPlayer(team,number,x,y){const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.classList.add('player',team);g.setAttribute('data-team',team);g.setAttribute('data-number',number);
-    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('r',2);c.setAttribute('cx',x);c.setAttribute('cy',y);
-    const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',x);t.setAttribute('y',y);t.textContent=number; g.appendChild(c);g.appendChild(t); makeDraggable(g); playersG.appendChild(g); return g;}
-  function initPlayers(){playersG.innerHTML='';for(let i=1;i<=11;i++){const y=6+(i-1)*((PITCH_H-12)/10);createPlayer('team1',i,4,y)}for(let i=1;i<=11;i++){const y=6+(i-1)*((PITCH_H-12)/10);createPlayer('team2',i,80,y)}setTeamColor('team1',team1Sel.value);setTeamColor('team2',team2Sel.value);}
-  function createBall(x,y){ballG.innerHTML='';const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.classList.add('ball');const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('r',1);c.setAttribute('cx',x);c.setAttribute('cy',y);g.appendChild(c);makeDraggable(g);ballG.appendChild(g);}
-  let temp=null; function beginArrow(evt){const active=drawMode; if(!active)return; evt.preventDefault(); const p=svgPoint(evt); temp=document.createElementNS('http://www.w3.org/2000/svg','line'); temp.setAttribute('x1',p.x);temp.setAttribute('y1',p.y);temp.setAttribute('x2',p.x);temp.setAttribute('y2',p.y);temp.setAttribute('stroke','black');temp.setAttribute('stroke-width','.6');temp.setAttribute('marker-end','url(#arrowhead)');arrowsG.appendChild(temp);
-    window.addEventListener('mousemove',drawArrow,{passive:false});window.addEventListener('mouseup',finishArrow,{passive:false});window.addEventListener('touchmove',drawArrow,{passive:false});window.addEventListener('touchend',finishArrow,{passive:false});window.addEventListener('touchcancel',finishArrow,{passive:false});}
-  function drawArrow(evt){if(!temp)return;evt.preventDefault();const p=svgPoint(evt);temp.setAttribute('x2',p.x);temp.setAttribute('y2',p.y);}
-  function finishArrow(evt){if(!temp)return;evt.preventDefault();temp=null;
-    window.removeEventListener('mousemove',drawArrow);window.removeEventListener('mouseup',finishArrow);window.removeEventListener('touchmove',drawArrow);window.removeEventListener('touchend',finishArrow);window.removeEventListener('touchcancel',finishArrow);}
-  svg.addEventListener('mousedown',beginArrow,{passive:false}); svg.addEventListener('touchstart',beginArrow,{passive:false});
-  document.getElementById('clearArrows').addEventListener('click',()=>{while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);});
-  document.getElementById('resetPlayers').addEventListener('click',()=>{initPlayers();const bc=document.querySelector('#ball circle');if(bc){bc.setAttribute('cx',42);bc.setAttribute('cy',52.5);}while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);});
+  const PITCH_H=105;
+  const team1Sel=document.getElementById('team1Color'), team2Sel=document.getElementById('team2Color');
 
-  function openModal(id){document.getElementById(id).classList.add('open')} function closeModal(id){document.getElementById(id).classList.remove('open')} window.closeModal=closeModal;
-  document.getElementById('openSave').addEventListener('click',()=>openModal('modalSave'));
-  document.getElementById('openLoad').addEventListener('click',()=>{renderPlans();openModal('modalLoad')});
-  function getPlanState(){const players=[...playersG.querySelectorAll('.player')].map(g=>({team:g.getAttribute('data-team'),number:+g.getAttribute('data-number'),cx:+g.querySelector('circle').getAttribute('cx'),cy:+g.querySelector('circle').getAttribute('cy')})); const c=ballG.querySelector('circle'); const ball=c?{cx:+c.getAttribute('cx'),cy:+c.getAttribute('cy')}:null; const arrows=[...arrowsG.querySelectorAll('line')].map(l=>({x1:+l.getAttribute('x1'),y1:+l.getAttribute('y1'),x2:+l.getAttribute('x2'),y2:+l.getAttribute('y2')})); return {players,ball,arrows,t1:team1Sel.value,t2:team2Sel.value};}
-  function applyPlan(state){initPlayers();team1Sel.value=state.t1||team1Sel.value;team2Sel.value=state.t2||team2Sel.value;setTeamColor('team1',team1Sel.value);setTeamColor('team2',team2Sel.value);
-    const map=new Map();[...playersG.querySelectorAll('.player')].forEach(g=>map.set(g.getAttribute('data-team')+'-'+g.getAttribute('data-number'),g));
-    (state.players||[]).forEach(p=>{const g=map.get(p.team+'-'+p.number); if(g){const c=g.querySelector('circle'),t=g.querySelector('text');c.setAttribute('cx',p.cx);c.setAttribute('cy',p.cy);t.setAttribute('x',p.cx);t.setAttribute('y',p.cy);}});
-    const bc=ballG.querySelector('circle'); if(bc&&state.ball){bc.setAttribute('cx',state.ball.cx);bc.setAttribute('cy',state.ball.cy);}
-    while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);
-    (state.arrows||[]).forEach(a=>{const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',a.x1);l.setAttribute('y1',a.y1);l.setAttribute('x2',a.x2);l.setAttribute('y2',a.y2);l.setAttribute('stroke','black');l.setAttribute('stroke-width','.6');l.setAttribute('marker-end','url(#arrowhead)');arrowsG.appendChild(l);});
+  let drawMode=false;
+  document.getElementById('toggleDraw').addEventListener('click',()=>{drawMode=!drawMode});
+
+  function svgPoint(evt){const pt=svg.createSVGPoint(); if(evt.touches&&evt.touches[0]){pt.x=evt.touches[0].clientX;pt.y=evt.touches[0].clientY;} else {pt.x=evt.clientX;pt.y=evt.clientY;} const m=svg.getScreenCTM().inverse(); return pt.matrixTransform(m);}
+
+  function setTeamColor(team,color){
+    playersG.querySelectorAll('.player.'+team).forEach(g=>{
+      const c=g.querySelector('circle'),t=g.querySelector('text');
+      c.setAttribute('fill',color);
+      const lc=color.toLowerCase(), bright=(lc==='#ffffff'||lc==='#ffd400');
+      t.setAttribute('fill',bright?'#000':'#fff'); c.setAttribute('stroke',bright?'#000':'none'); c.setAttribute('stroke-width',bright?'0.3':'0');
+    });
   }
-  function loadPlans(){try{return JSON.parse(localStorage.getItem(KEY_PLANS))||[]}catch(e){return[]}} function savePlans(list){localStorage.setItem(KEY_PLANS,JSON.stringify(list))}
-  document.getElementById('saveNow').addEventListener('click',()=>{const name=(document.getElementById('saveName').value||'').trim(); if(!name)return alert('Bitte Namen vergeben.'); const list=loadPlans(),data=getPlanState(); const idx=list.findIndex(x=>x.name.toLowerCase()===name.toLowerCase()); if(idx>=0)list[idx]={name,data,updatedAt:Date.now()}; else list.push({name,data,updatedAt:Date.now()}); savePlans(list); document.getElementById('saveName').value=''; closeModal('modalSave');});
-  function renderPlans(){const list=loadPlans().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)); const box=document.getElementById('plansList'); box.innerHTML=''; if(!list.length){box.innerHTML='<div class="muted">Noch keine Arrangements gespeichert.</div>'; return;}
-    list.forEach((p,i)=>{const row=document.createElement('div');row.className='item';row.innerHTML='<div><b>'+escapeHtml(p.name)+'</b><div class="muted">'+new Date(p.updatedAt).toLocaleString()+'</div></div><div class="row"><button class="btn" data-i="'+i+'" data-act="load">Laden</button><button class="btn btn-ghost" data-i="'+i+'" data-act="del">Löschen</button></div>'; box.appendChild(row);});
-    box.onclick=e=>{const b=e.target.closest('button'); if(!b)return; const i=+b.dataset.i,act=b.dataset.act; const list=loadPlans(); if(act==='load'){applyPlan(list[i].data); closeModal('modalLoad');} if(act==='del'){if(confirm('Arrangement löschen?')){list.splice(i,1);savePlans(list);renderPlans();}}};
+  team1Sel.addEventListener('change',e=>setTeamColor('team1',e.target.value));
+  team2Sel.addEventListener('change',e=>setTeamColor('team2',e.target.value));
+
+  function makeDraggable(g){
+    let dragging=false,dx=0,dy=0;
+    function getC(){const c=g.querySelector('circle'); return {cx:+c.getAttribute('cx'),cy:+c.getAttribute('cy')}}
+    function setC(x,y){const c=g.querySelector('circle'),t=g.querySelector('text'); c.setAttribute('cx',x); c.setAttribute('cy',y); if(t){t.setAttribute('x',x); t.setAttribute('y',y);}}
+    function start(evt){ if(drawMode) return; evt.preventDefault(); const p=svgPoint(evt), ctr=getC(); dx=p.x-ctr.cx; dy=p.y-ctr.cy; dragging=true; g.classList.add('drag');
+      window.addEventListener('mousemove',move,{passive:false}); window.addEventListener('mouseup',end,{passive:false});
+      window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',end,{passive:false}); window.addEventListener('touchcancel',end,{passive:false});
+    }
+    function move(evt){ if(!dragging) return; evt.preventDefault(); const p=svgPoint(evt); setC(p.x-dx,p.y-dy); }
+    function end(){ dragging=false; g.classList.remove('drag');
+      window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',end);
+      window.removeEventListener('touchmove',move); window.removeEventListener('touchend',end); window.removeEventListener('touchcancel',end);
+    }
+    g.addEventListener('mousedown',start,{passive:false}); g.addEventListener('touchstart',start,{passive:false});
+  }
+
+  function createPlayer(team,number,x,y){
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.classList.add('player',team); g.setAttribute('data-team',team); g.setAttribute('data-number',number);
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('r',2); c.setAttribute('cx',x); c.setAttribute('cy',y);
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text'); t.setAttribute('x',x); t.setAttribute('y',y); t.textContent=number;
+    g.appendChild(c); g.appendChild(t); makeDraggable(g); playersG.appendChild(g);
+  }
+
+  function initPlayers(){
+    playersG.innerHTML='';
+    for(let i=1;i<=11;i++){const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team1',i,4,y);}
+    for(let i=1;i<=11;i++){const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team2',i,80,y);}
+    setTeamColor('team1',team1Sel.value); setTeamColor('team2',team2Sel.value);
+  }
+
+  function createBall(x,y){
+    ballG.innerHTML=''; const g=document.createElementNS('http://www.w3.org/2000/svg','g'); g.classList.add('ball');
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('r',1); c.setAttribute('cx',x); c.setAttribute('cy',y);
+    g.appendChild(c); makeDraggable(g); ballG.appendChild(g);
+  }
+
+  // Draw Arrows
+  let temp=null;
+  function beginArrow(evt){
+    if(!drawMode) return; evt.preventDefault();
+    const p=svgPoint(evt);
+    temp=document.createElementNS('http://www.w3.org/2000/svg','line');
+    temp.setAttribute('x1',p.x); temp.setAttribute('y1',p.y); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y);
+    temp.setAttribute('stroke','black'); temp.setAttribute('stroke-width','.6'); temp.setAttribute('marker-end','url(#arrowhead)');
+    arrowsG.appendChild(temp);
+    window.addEventListener('mousemove',drawArrow,{passive:false});
+    window.addEventListener('mouseup',finishArrow,{passive:false});
+    window.addEventListener('touchmove',drawArrow,{passive:false});
+    window.addEventListener('touchend',finishArrow,{passive:false});
+    window.addEventListener('touchcancel',finishArrow,{passive:false});
+  }
+  function drawArrow(evt){ if(!temp) return; evt.preventDefault(); const p=svgPoint(evt); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y); }
+  function finishArrow(evt){ if(!temp) return; evt.preventDefault(); temp=null;
+    window.removeEventListener('mousemove',drawArrow); window.removeEventListener('mouseup',finishArrow);
+    window.removeEventListener('touchmove',drawArrow); window.removeEventListener('touchend',finishArrow); window.removeEventListener('touchcancel',finishArrow);
+  }
+  svg.addEventListener('mousedown',beginArrow,{passive:false});
+  svg.addEventListener('touchstart',beginArrow,{passive:false});
+  document.getElementById('clearArrows').addEventListener('click',()=>{while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);});
+  document.getElementById('resetPlayers').addEventListener('click',()=>{initPlayers();const bc=document.querySelector('#ball circle'); if(bc){bc.setAttribute('cx',42);bc.setAttribute('cy',52.5);} while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);});
+
+  /* ====== SAVE / LOAD ARRANGEMENTS ====== */
+  function openModal(id){document.getElementById(id).classList.add('open')}
+  function closeModal(id){document.getElementById(id).classList.remove('open')}
+  window.closeModal=closeModal;
+  document.getElementById('openSave').onclick=()=>openModal('modalSave');
+  document.getElementById('openLoad').onclick=()=>{renderPlans();openModal('modalLoad')};
+
+  function getPlanState(){
+    const players=[...playersG.querySelectorAll('.player')].map(g=>({
+      team:g.getAttribute('data-team'), number:+g.getAttribute('data-number'),
+      cx:+g.querySelector('circle').getAttribute('cx'), cy:+g.querySelector('circle').getAttribute('cy')
+    }));
+    const c=ballG.querySelector('circle'); const ball=c?{cx:+c.getAttribute('cx'),cy:+c.getAttribute('cy')}:null;
+    const arrows=[...arrowsG.querySelectorAll('line')].map(l=>({x1:+l.getAttribute('x1'),y1:+l.getAttribute('y1'),x2:+l.getAttribute('x2'),y2:+l.getAttribute('y2')}));
+    return {players,ball,arrows,t1:team1Sel.value,t2:team2Sel.value};
+  }
+  function applyPlan(state){
+    initPlayers(); team1Sel.value=state.t1||team1Sel.value; team2Sel.value=state.t2||team2Sel.value;
+    setTeamColor('team1',team1Sel.value); setTeamColor('team2',team2Sel.value);
+    const map=new Map(); [...playersG.querySelectorAll('.player')].forEach(g=>map.set(g.getAttribute('data-team')+'-'+g.getAttribute('data-number'),g));
+    (state.players||[]).forEach(p=>{const g=map.get(p.team+'-'+p.number); if(g){const c=g.querySelector('circle'),t=g.querySelector('text'); c.setAttribute('cx',p.cx); c.setAttribute('cy',p.cy); t.setAttribute('x',p.cx); t.setAttribute('y',p.cy);}});
+    const bc=ballG.querySelector('circle'); if(bc&&state.ball){bc.setAttribute('cx',state.ball.cx); bc.setAttribute('cy',state.ball.cy);}
+    while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);
+    (state.arrows||[]).forEach(a=>{const l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',a.x1); l.setAttribute('y1',a.y1); l.setAttribute('x2',a.x2); l.setAttribute('y2',a.y2); l.setAttribute('stroke','black'); l.setAttribute('stroke-width','.6'); l.setAttribute('marker-end','url(#arrowhead)'); arrowsG.appendChild(l);});
+  }
+  function loadPlans(){try{return JSON.parse(localStorage.getItem(KEY_PLANS))||[]}catch(e){return[]}}
+  function savePlans(list){localStorage.setItem(KEY_PLANS,JSON.stringify(list))}
+  document.getElementById('saveNow').onclick=()=>{const name=(document.getElementById('saveName').value||'').trim(); if(!name)return alert('Bitte Namen vergeben.');
+    const list=loadPlans(), data=getPlanState(); const idx=list.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(idx>=0)list[idx]={name,data,updatedAt:Date.now()}; else list.push({name,data,updatedAt:Date.now()});
+    savePlans(list); document.getElementById('saveName').value=''; closeModal('modalSave');
+  };
+  function renderPlans(){
+    const list=loadPlans().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const box=document.getElementById('plansList'); box.innerHTML='';
+    if(!list.length){box.innerHTML='<div class="muted">Noch keine Arrangements gespeichert.</div>'; return;}
+    list.forEach((p,i)=>{const row=document.createElement('div'); row.className='item';
+      row.innerHTML='<div><b>'+escapeHtml(p.name)+'</b><div class="muted">'+new Date(p.updatedAt).toLocaleString()+'</div></div>'+
+        '<div class="row"><button class="btn" data-i="'+i+'" data-act="load">Laden</button>'+
+        '<button class="btn btn-ghost" data-i="'+i+'" data-act="del">Löschen</button></div>';
+      box.appendChild(row);
+    });
+    box.onclick=e=>{const b=e.target.closest('button'); if(!b)return; const i=+b.dataset.i, act=b.dataset.act; const list=loadPlans();
+      if(act==='load'){applyPlan(list[i].data); closeModal('modalLoad');}
+      if(act==='del'){if(confirm('Arrangement löschen?')){list.splice(i,1); savePlans(list); renderPlans();}}
+    };
   }
   function escapeHtml(s){return (s||'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-  // Animations
-  let frames=[],playTimer=null; function renderFrames(){const box=document.getElementById('framesList'); box.innerHTML=''; if(!frames.length){box.innerHTML='<div class="muted">Keine Frames. „Frame aufnehmen“ drücken.</div>'; return;}
-    frames.forEach((fr,idx)=>{const row=document.createElement('div');row.className='item';row.innerHTML='<div><b>Frame '+(idx+1)+'</b></div><div class="row"><button class="btn" data-i="'+idx+'" data-act="up">▲</button><button class="btn" data-i="'+idx+'" data-act="down">▼</button><button class="btn btn-ghost" data-i="'+idx+'" data-act="del">Löschen</button></div>'; box.appendChild(row);});
-    box.onclick=e=>{const b=e.target.closest('button'); if(!b)return; const i=+b.dataset.i,act=b.dataset.act; if(act==='del'){frames.splice(i,1);renderFrames();} if(act==='up'&&i>0){[frames[i-1],frames[i]]=[frames[i],frames[i-1]];renderFrames();} if(act==='down'&&i<frames.length-1){[frames[i+1],frames[i]]=[frames[i],frames[i+1]];renderFrames();}};
-  }
-  function loadAnims(){try{return JSON.parse(localStorage.getItem(KEY_ANIMS))||[]}catch(e){return[]}} function saveAnims(list){localStorage.setItem(KEY_ANIMS,JSON.stringify(list))}
-  function renderAnims(){const list=loadAnims().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)); const box=document.getElementById('animsList'); box.innerHTML=''; if(!list.length){box.innerHTML='<div class="muted">Noch keine Animationen gespeichert.</div>'; return;}
-    list.forEach((a,i)=>{const row=document.createElement('div');row.className='item';row.innerHTML='<div><b>'+escapeHtml(a.name)+'</b><div class="muted">'+new Date(a.updatedAt).toLocaleString()+'</div></div><div class="row"><button class="btn" data-i="'+i+'" data-act="load">Laden</button><button class="btn btn-ghost" data-i="'+i+'" data-act="del">Löschen</button></div>'; box.appendChild(row);});
-    box.onclick=e=>{const b=e.target.closest('button'); if(!b)return; const i=+b.dataset.i,act=b.dataset.act; const list=loadAnims(); if(act==='load'){frames=list[i].frames.slice(); renderFrames();} if(act==='del'){if(confirm('Animation löschen?')){list.splice(i,1);saveAnims(list);renderAnims();}}};
-  }
-  document.getElementById('animCapture').onclick=()=>{frames.push(getPlanState());renderFrames()};
-  document.getElementById('animPlay').onclick=()=>{if(!frames.length)return alert('Keine Frames vorhanden.'); const ms=Math.max(100,+document.getElementById('animMs').value||800); let i=0; clearInterval(playTimer); applyPlan(frames[0]); playTimer=setInterval(()=>{i=(i+1)%frames.length;applyPlan(frames[i]);},ms);};
-  document.getElementById('animStop').onclick=()=>{clearInterval(playTimer)};
-  document.getElementById('animSave').onclick=()=>{const name=(document.getElementById('animName').value||'').trim(); if(!name)return alert('Bitte Animationsnamen vergeben.'); if(!frames.length)return alert('Keine Frames zum Speichern.'); const list=loadAnims(); const idx=list.findIndex(x=>x.name.toLowerCase()===name.toLowerCase()); const obj={name,frames,updatedAt:Date.now()}; if(idx>=0)list[idx]=obj; else list.push(obj); saveAnims(list); document.getElementById('animName').value=''; renderAnims();};
-  document.getElementById('openAnim').onclick=()=>{renderFrames();renderAnims();openModal('modalAnim')};
 
-  function boot(){initPlayers();createBall(42,52.5); setTimeout(()=>{if(!playersG.children.length)initPlayers()},200)}
-  if(window.Auth){Auth.ready.then(()=>{Auth.onAuth(u=>{if(u)boot();})}); setTimeout(()=>{if(!playersG.children.length)boot()},800)} else {document.addEventListener('DOMContentLoaded',boot)}
+  /* ====== ANIMATION (Dock) ====== */
+  let frames=[], playTimer=null;
+  const framesList=document.getElementById('framesList');
+  const animMs=document.getElementById('animMs');
+  const animName=document.getElementById('animName');
+  const animSelect=document.getElementById('animSelect');
+
+  // Dock toggling
+  const dock=document.getElementById('animDock');
+  const dockBtn=document.getElementById('toggleDock');
+  const dockCollapse=document.getElementById('dockCollapse');
+  let collapsed=true;
+  function setDock(state){ collapsed = state; dock.classList.toggle('collapsed', collapsed); dockCollapse.textContent = collapsed ? '▲' : '▼'; }
+  dockBtn.onclick=()=>setDock(false);
+  dockCollapse.onclick=()=>setDock(!collapsed);
+
+  function renderFrames(){
+    framesList.innerHTML='';
+    if(!frames.length){ framesList.innerHTML='<div class="muted">Keine Frames. „Frame aufnehmen“ drücken.</div>'; return; }
+    frames.forEach((fr,idx)=>{
+      const row=document.createElement('div'); row.className='frame-item';
+      row.innerHTML = `
+        <div><b>Frame ${idx+1}</b></div>
+        <div class="row">
+          <button class="btn" data-i="${idx}" data-act="up">▲</button>
+          <button class="btn" data-i="${idx}" data-act="down">▼</button>
+          <button class="btn btn-ghost" data-i="${idx}" data-act="del">Löschen</button>
+        </div>`;
+      framesList.appendChild(row);
+    });
+    framesList.onclick=(e)=>{
+      const b=e.target.closest('button'); if(!b) return;
+      const i=+b.dataset.i, act=b.dataset.act;
+      if(act==='del'){ frames.splice(i,1); renderFrames(); }
+      if(act==='up' && i>0){ [frames[i-1],frames[i]]=[frames[i],frames[i-1]]; renderFrames(); }
+      if(act==='down' && i<frames.length-1){ [frames[i+1],frames[i]]=[frames[i],frames[i+1]]; renderFrames(); }
+    };
+  }
+
+  document.getElementById('animCapture').onclick=()=>{ frames.push(getPlanState()); renderFrames(); };
+  document.getElementById('animPlay').onclick=()=>{
+    if(!frames.length) return alert('Keine Frames vorhanden.');
+    const ms=Math.max(100, +animMs.value || 800);
+    let i=0; clearInterval(playTimer); applyPlan(frames[0]);
+    playTimer = setInterval(()=>{ i=(i+1)%frames.length; applyPlan(frames[i]); }, ms);
+  };
+  document.getElementById('animStop').onclick=()=>{ clearInterval(playTimer); };
+
+  function loadAnims(){try{return JSON.parse(localStorage.getItem(KEY_ANIMS))||[]}catch(e){return[]}}
+  function saveAnims(list){localStorage.setItem(KEY_ANIMS,JSON.stringify(list))}
+  function refreshAnimSelect(){
+    const list=loadAnims().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    animSelect.innerHTML = list.length ? '' : '<option value="">(keine gespeicherten Animationen)</option>';
+    list.forEach((a,i)=>{
+      const opt=document.createElement('option'); opt.value=String(i); opt.textContent = a.name + ' – ' + new Date(a.updatedAt).toLocaleString();
+      animSelect.appendChild(opt);
+    });
+  }
+  document.getElementById('animSave').onclick=()=>{
+    const name=(animName.value||'').trim();
+    if(!name) return alert('Bitte Animationsnamen vergeben.');
+    if(!frames.length) return alert('Keine Frames zum Speichern.');
+    const list=loadAnims();
+    const idx=list.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
+    const obj={name,frames,updatedAt:Date.now()};
+    if(idx>=0) list[idx]=obj; else list.push(obj);
+    saveAnims(list); animName.value=''; refreshAnimSelect();
+  };
+  document.getElementById('animLoad').onclick=()=>{
+    const list=loadAnims(); const i=+animSelect.value;
+    if(Number.isNaN(i) || !list[i]) return alert('Bitte eine gespeicherte Animation auswählen.');
+    frames = list[i].frames.slice(); renderFrames(); setDock(false);
+  };
+  document.getElementById('animDelete').onclick=()=>{
+    const list=loadAnims(); const i=+animSelect.value;
+    if(Number.isNaN(i) || !list[i]) return alert('Bitte eine gespeicherte Animation auswählen.');
+    if(confirm('Animation löschen?')){
+      list.splice(i,1); saveAnims(list); refreshAnimSelect();
+    }
+  };
+
+  /* ====== BOOT ====== */
+  function boot(){ initPlayers(); createBall(42,52.5); refreshAnimSelect(); setDock(true); }
+  if(window.Auth){ Auth.ready.then(()=>{ Auth.onAuth(u=>{ if(u) boot(); }); }); setTimeout(()=>{ if(!playersG.children.length) boot(); },800); }
+  else { document.addEventListener('DOMContentLoaded', boot); }
+
   </script>
 </body>
 </html>
