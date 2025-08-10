@@ -79,4 +79,35 @@
     };
   }
   window.Auth = { ready: (async ()=>{ try { await init(); return true; } catch(e){ console.error(e); return false; } })() };
+// --- Logout-Funktion bereitstellen ---
+;(function () {
+  // Falls deine auth.js bereits ein "auth" (getAuth()) hat, nutze das.
+  // Sonst laden wir sicherheitshalber die Funktion aus dem modularen SDK nach.
+  async function doSignOut() {
+    try {
+      // modular v9:
+      const mod = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js');
+      const getAuth = mod.getAuth || window.getAuth;
+      const signOut = mod.signOut || window.signOut;
+      const auth = getAuth();
+      await signOut(auth);
+    } catch (e) {
+      console.error('Logout fehlgeschlagen:', e);
+      alert('Abmelden fehlgeschlagen. Bitte erneut versuchen.');
+      throw e;
+    }
+  }
+
+  // Falls es schon ein globales Auth-Objekt gibt, hängen wir die Methode dran:
+  if (window.Auth) {
+    window.Auth.signOut = doSignOut;
+  } else {
+    // Notfalls eines anlegen (falls deine auth.js das noch nicht tut)
+    window.Auth = {
+      ready: Promise.resolve(),
+      requireAuth: () => {},
+      onAuth: () => {},
+      signOut: doSignOut
+    };
+  }
 })();
