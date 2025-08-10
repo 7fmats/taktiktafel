@@ -157,9 +157,9 @@
     }
   </script>
 
-  <!-- jsPDF + AutoTable (für PDF-Export) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-Ykqf2dE2lJt9z3zvF3zS4Q8+uG1gY0cQ6b1c7X1P9l0uU6j2y8JSCtYwY5e8H8mM1o7b9G8w0l9v0zCw0IuQxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" integrity="sha512-g2S7Qz7Jz2ttQ5d7m6S7mL3f4GmV1m1dZJk0l9h2C6OeSIkJ5k0W7cQ2Z1cJQ9YVdXG5R0qH1Cq7k5m+5kq2yA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- jsPDF + AutoTable (stabile CDN-Versionen ohne SRI, damit GitHub Pages/iOS nicht meckern) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
   <script>
   (function(){
@@ -297,21 +297,24 @@
       }
     });
 
-    // PDF Export mit jsPDF
+    // PDF Export – robust inkl. iOS/iPadOS Safari (Blob + download-Link)
     pdfBtn.addEventListener('click', async () => {
       const r = readForm();
       if (!r.opponent) { alert('Bitte zuerst Gegner eintragen und speichern.'); return; }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert('PDF-Bibliothek konnte nicht geladen werden. Prüfe die Internetverbindung.');
+        return;
+      }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
-      // Kopf: Logo + Titel
       const margin = 40;
+
+      // Kopf mit Logo + Titel
       try {
-        const imgProps = doc.getImageProperties(logoData);
-        const ratio = imgProps.width / imgProps.height;
-        const h = 60, w = h * ratio;
-        doc.addImage(logoData, 'JPEG', doc.internal.pageSize.getWidth() - margin - w, margin, w, h);
-      } catch (e) {}
+        doc.addImage(logoData, 'JPEG', doc.internal.pageSize.getWidth() - margin - 60, margin, 60, 60);
+      } catch(e) { /* falls addImage auf dem Gerät blockiert ist, überspringen */ }
+
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
       doc.text('Scouting Sheet – TSV Handorf', margin, margin + 16);
@@ -320,7 +323,6 @@
       doc.text('Gegner: ' + (r.opponent || ''), margin, margin + 40);
       doc.text('Stand: ' + new Date(r.updatedAt||Date.now()).toLocaleString(), margin, margin + 58);
 
-      // Inhalt als Tabelle
       const rows = [
         ['Grundordnung mit Ball', r.formationWith || ''],
         ['Grundordnung gegen den Ball', r.formationAgainst || ''],
@@ -330,24 +332,42 @@
         ['Standards gegen den Ball', r.setPiecesAgainst || ''],
         ['Besonderheiten', r.notes || '']
       ];
-      doc.autoTable({
-        startY: margin + 80,
-        head: [['Bereich', 'Inhalt']],
-        body: rows,
-        styles: { cellPadding: 6, valign:'top' },
-        headStyles: { fillColor: [16,185,129] }, // grün
-        columnStyles: { 0: { cellWidth: 180, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
-        theme: 'grid',
-        didDrawPage: (data) => {
-          // Fußzeile
-          const pageSize = doc.internal.pageSize;
-          doc.setFontSize(10);
-          doc.setTextColor(100);
-          doc.text('Scouting Sheet – TSV Handorf', margin, pageSize.getHeight() - 20);
-        }
-      });
 
-      doc.save('Scouting_' + (r.opponent||'Gegner') + '.pdf');
+      if (doc.autoTable) {
+        doc.autoTable({
+          startY: margin + 80,
+          head: [['Bereich', 'Inhalt']],
+          body: rows,
+          styles: { cellPadding: 6, valign:'top', overflow:'linebreak' },
+          headStyles: { fillColor: [255, 212, 0], textColor: [0,0,0] }, // TSV-Gelb
+          columnStyles: { 0: { cellWidth: 190, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+          theme: 'grid'
+        });
+      } else {
+        // Fallback ohne AutoTable
+        let y = margin + 90;
+        doc.setFont('helvetica', 'bold'); doc.text('Bereich', margin, y); doc.text('Inhalt', margin+200, y); y+=12;
+        doc.setFont('helvetica','normal');
+        rows.forEach(([k,v])=>{ doc.text(String(k), margin, y); doc.text(String(v||''), margin+200, y, { maxWidth: doc.internal.pageSize.getWidth()-margin-200 }); y+=20; });
+      }
+
+      const safeName = (r.opponent || 'Gegner').replace(/[^a-z0-9_-]+/gi,'_');
+      const filename = 'Scouting_' + safeName + '.pdf';
+
+      // Cross-browser Download: bevorzugt Blob + <a download>
+      try {
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+      } catch(e) {
+        // Fallback
+        doc.save(filename);
+      }
     });
 
     // Init
