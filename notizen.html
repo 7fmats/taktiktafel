@@ -19,10 +19,14 @@
 </head>
 <body data-feature="Notizen">
   <header class="app-header">
-    <div class="left"><a href="index.html" class="btn btn-yellow">Startseite</a></div>
+    <div class="left">
+      <a href="index.html" class="btn btn-yellow">Startseite</a>
+      <span id="userLabel" class="muted" style="display:none;"></span>
+      <button id="logoutBtn" class="btn btn-ghost" style="display:none;">Logout</button>
+    </div>
     <div class="right brand-pack">
       <div><h1 class="app-title">Notizen</h1><p class="app-sub">TSV Handorf</p></div>
-      <img src="TSV-Logo_1%20(1).jpg" alt="TSV Handorf Logo">
+      <img src="tsv-logo.jpg" alt="TSV Handorf Logo">
     </div>
   </header>
 
@@ -61,7 +65,23 @@
   </main>
 
   <script src="auth.js"></script>
-  <script>if(window.Auth){Auth.ready.then(()=>Auth.requireAuth('auth.html'));}</script>
+  <script>
+    if (window.Auth) { Auth.ready.then(() => Auth.requireAuth('auth.html')); }
+    (function () {
+      const label = document.getElementById('userLabel');
+      const btn = document.getElementById('logoutBtn');
+      function showUser(u) {
+        if (!label || !btn) return;
+        if (u) { label.textContent = u.email ? `Angemeldet: ${u.email}` : 'Angemeldet'; label.style.display = 'inline'; btn.style.display = 'inline-flex'; }
+        else   { label.style.display = 'none'; btn.style.display = 'none'; }
+      }
+      if (window.Auth) {
+        Auth.ready.then(() => { if (Auth.onAuth) Auth.onAuth(user => showUser(user)); });
+        if (btn) btn.addEventListener('click', async () => { try { await Auth.signOut(); } finally { location.href = 'auth.html'; } });
+      }
+    })();
+  </script>
+
   <script>
   (function(){
     const KEY='tsv_notes_v1';
@@ -104,7 +124,6 @@
       const data=loadAll(); const idx=data.findIndex(x=>x.id===n.id); if(idx>=0)data[idx]=n; else data.push(n); saveAll(data); renderList(q.value); writeForm(n);};
     deleteBtn.onclick=()=>{if(!currentId){clearForm();return} const data=loadAll(); const idx=data.findIndex(n=>n.id===currentId); if(idx>=0&&confirm('Diese Notiz löschen?')){data.splice(idx,1); saveAll(data); renderList(q.value); clearForm();}};
 
-    // RTE Toolbar
     document.querySelector('.rte-toolbar').onclick=e=>{
       const b=e.target.closest('button'); if(!b)return;
       const cmd=b.dataset.cmd, val=b.dataset.value; if(cmd==='formatBlock'){document.execCommand('formatBlock',false,val||'P');}
