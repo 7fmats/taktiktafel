@@ -1,69 +1,29 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>TSV Fussballkladde</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f5f5f5;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-    }
-    header {
-      text-align: center;
-      padding: 20px;
-    }
-    header img {
-      height: 100px;
-    }
-    header h1 {
-      margin: 10px 0 0 0;
-      font-size: 28px;
-      color: #333;
-    }
-    main {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 20px;
-      padding: 20px;
-      max-width: 800px;
-    }
-    a.tile {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 200px;
-      height: 120px;
-      background-color: #ffd400; /* TSV-Gelb */
-      color: #000;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 18px;
-      border-radius: 10px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    a.tile:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <header>
-    <!-- Logo im Header -->
-    <img src="TSV-Logo_1%20(1).jpg" alt="TSV Handorf Logo" />
-    <h1>TSV Fussballkladde</h1>
+<body data-feature="TSV Fussballkladde">
+  <header class="app-header">
+    <div class="left"></div>
+    <div class="right brand-pack">
+      <div>
+        <h1 class="app-title">TSV Fussballkladde</h1>
+        <p class="app-sub">TSV Handorf</p>
+      </div>
+      <img src="TSV-Logo_1%20(1).jpg" alt="TSV Handorf Logo">
+    </div>
   </header>
-  <main>
-    <a class="tile" href="taktiktafel.html">Taktiktafel</a>
-    <a class="tile" href="notizen.html">Notizen</a>
-    <a class="tile" href="scouting.html">Scouting Sheet</a>
+
+  <main class="container">
+    <div class="tiles">
+      <a class="tile" href="taktiktafel.html">Taktiktafel</a>
+      <a class="tile" href="notizen.html">Notizen</a>
+      <a class="tile" href="scouting.html">Scouting Sheet</a>
+    </div>
   </main>
 </body>
 </html>
