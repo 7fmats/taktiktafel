@@ -1,113 +1,111 @@
+// auth.js — Firebase Init + einfache Auth-Utilitys für alle Seiten
 
-/*! Auth.js – Firebase loader + helpers (no bundler required) */
-(function(){
-  const CONFIG = {"apiKey": "AIzaSyD4NCsBAyV22M-ISurQOWEWi0ZyfuX6FYk", "authDomain": "taktiktafel-582a9.firebaseapp.com", "projectId": "taktiktafel-582a9", "storageBucket": "taktiktafel-582a9.firebasestorage.app", "messagingSenderId": "837580144249", "appId": "1:837580144249:web:6752629889e593e8e25ea8"};
-  function loadScript(src){
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src; s.async = true; s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-  async function init(){
-    if (!window.firebase || !firebase?.apps?.length) {
-      await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
-      await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js");
-      await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js");
-      firebase.initializeApp(CONFIG);
+// >>>> Deine Firebase Config hier eintragen (wie bereits von dir erhalten) <<<<
+const firebaseConfig = {
+  apiKey: "AIzaSyD4NCsBAyV22M-ISurQOWEWi0ZyfuX6FYk",
+  authDomain: "taktiktafel-582a9.firebaseapp.com",
+  projectId: "taktiktafel-582a9",
+  storageBucket: "taktiktafel-582a9.firebasestorage.app",
+  messagingSenderId: "837580144249",
+  appId: "1:837580144249:web:6752629889e593e8e25ea8"
+};
+
+// Wir nutzen die modularen v9-CDN-Module und kapseln alles in ein IIFE:
+(function () {
+  let app, auth;
+  let authListeners = [];
+
+  // Einmalige Initialisierung + Bereitstellen der API
+  const ready = (async () => {
+    // Module dynamisch laden (funktioniert auf GitHub Pages)
+    const appMod  = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js');
+    const authMod = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js');
+
+    const { initializeApp } = appMod;
+    const { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+            createUserWithEmailAndPassword, signOut, updateProfile } = authMod;
+
+    app  = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+
+    // Globale Hilfsfunktionen:
+    async function doSignOut() {
+      await signOut(auth);
     }
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch(e) {}
-    async function register({email, password, username}){
-      if(!email || !password) throw new Error("Email und Passwort erforderlich.");
-      if(!username || !username.trim()) throw new Error("Username erforderlich.");
-      // 1) Create user first (become authenticated for rules)
-      const cred = await auth.createUserWithEmailAndPassword(email, password);
-      const uid = cred.user.uid;
-      // 2) Check username uniqueness (now allowed)
-      const uname = username.trim();
-      const snap = await db.collection('users').where('username','==', uname).limit(1).get();
-      if(!snap.empty){
-        try { await cred.user.delete(); } catch(e){}
-        throw new Error("Username bereits vergeben. Bitte anderen wählen.");
-      }
-      // 3) Save profile
-      await db.collection('users').doc(uid).set({
-        username: uname,
-        email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      return cred.user;
+    function onAuth(cb) {
+      // Sofort feuern, wenn bereits bekannt:
+      if (auth.currentUser) cb(auth.currentUser);
+      authListeners.push(cb);
     }
-    function login({email, password}){
-      if(!email || !password) throw new Error("Email und Passwort erforderlich.");
-      return auth.signInWithEmailAndPassword(email, password);
-    }
-    function logout(){ return auth.signOut(); }
-    function sendPasswordReset(email){
-      if(!email) throw new Error("E‑Mail erforderlich.");
-      return auth.sendPasswordResetEmail(email);
-    }
-    function onAuth(callback){ return auth.onAuthStateChanged(callback); }
-    function requireAuth(redirect = "auth.html"){
-      return auth.onAuthStateChanged(user => {
-        if(!user){
-          const here = location.pathname + location.search + location.hash;
-          location.href = redirect + "?redirect=" + encodeURIComponent(here);
+    function requireAuth(loginUrl = 'auth.html') {
+      onAuthStateChanged(auth, (user) => {
+        // Weiterreichen an UI-Callbacks
+        authListeners.forEach(fn => { try { fn(user); } catch (_) {} });
+        // Guard:
+        if (!user) {
+          // nur weiterleiten, wenn wir nicht schon auf der Login-Seite sind
+          if (!location.pathname.endsWith('/auth.html') && !location.pathname.endsWith('auth.html')) {
+            const back = encodeURIComponent(location.pathname + location.search);
+            location.replace(`auth.html?redirect=${back}`);
+          }
         }
       });
     }
-    async function getUserProfile(uid){
-      uid = uid || (auth.currentUser && auth.currentUser.uid);
-      if(!uid) return null;
-      const doc = await db.collection('users').doc(uid).get();
-      return doc.exists ? ({ id: doc.id, ...doc.data() }) : null;
+    function attachAuthListener() {
+      // Stellt sicher, dass auch ohne requireAuth() die UI-Callbacks User-Änderungen bekommen
+      onAuthStateChanged(auth, (user) => {
+        authListeners.forEach(fn => { try { fn(user); } catch (_) {} });
+      });
     }
-    async function setUserProfile(uid, data){
-      uid = uid || (auth.currentUser && auth.currentUser.uid);
-      if(!uid) throw new Error("Kein Nutzer angemeldet.");
-      await db.collection('users').doc(uid).set(data, { merge: true });
-      return getUserProfile(uid);
-    }
-    window.Auth = {
-      firebase, auth, db,
-      register, login, logout,
-      sendPasswordReset, onAuth, requireAuth,
-      getUserProfile, setUserProfile,
-      ready: Promise.resolve(true)
-    };
-  }
-  window.Auth = { ready: (async ()=>{ try { await init(); return true; } catch(e){ console.error(e); return false; } })() };
-// --- Logout-Funktion bereitstellen ---
-;(function () {
-  // Falls deine auth.js bereits ein "auth" (getAuth()) hat, nutze das.
-  // Sonst laden wir sicherheitshalber die Funktion aus dem modularen SDK nach.
-  async function doSignOut() {
-    try {
-      // modular v9:
-      const mod = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js');
-      const getAuth = mod.getAuth || window.getAuth;
-      const signOut = mod.signOut || window.signOut;
-      const auth = getAuth();
-      await signOut(auth);
-    } catch (e) {
-      console.error('Logout fehlgeschlagen:', e);
-      alert('Abmelden fehlgeschlagen. Bitte erneut versuchen.');
-      throw e;
-    }
-  }
+    attachAuthListener();
 
-  // Falls es schon ein globales Auth-Objekt gibt, hängen wir die Methode dran:
-  if (window.Auth) {
-    window.Auth.signOut = doSignOut;
-  } else {
-    // Notfalls eines anlegen (falls deine auth.js das noch nicht tut)
+    // Public API
     window.Auth = {
+      // Promise, das erfüllt ist, wenn Firebase geladen ist
       ready: Promise.resolve(),
-      requireAuth: () => {},
-      onAuth: () => {},
-      signOut: doSignOut
+      // aktueller User (Getter)
+      get currentUser() { return auth.currentUser || null; },
+      // UI informiert halten
+      onAuth,
+      // Seiten schützen
+      requireAuth,
+      // Logout für Buttons
+      signOut: doSignOut,
+
+      // Optional: einfache Login/Signup-Helfer (falls du sie brauchst)
+      async signIn(email, password) {
+        const { user } = await signInWithEmailAndPassword(auth, email, password);
+        return user;
+      },
+      async signUp(email, password, displayName) {
+        const { user } = await createUserWithEmailAndPassword(auth, email, password);
+        if (displayName) {
+          await (await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js'))
+            .then(m => m.updateProfile(user, { displayName }));
+        }
+        return user;
+      }
     };
-  }
+  })().catch(err => {
+    console.error('Firebase-Init fehlgeschlagen:', err);
+    alert('Fehler bei der Anmeldung/Initialisierung. Bitte Seite neu laden.');
+  });
+
+  // Für Seiten, die auf Auth.ready warten:
+  Object.defineProperty(window, 'Auth', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return {
+        ready,
+        onAuth: (...args) => ready.then(() => window.Auth.onAuth(...args)),
+        requireAuth: (...args) => ready.then(() => window.Auth.requireAuth(...args)),
+        signOut: (...args) => ready.then(() => window.Auth.signOut(...args)),
+        get currentUser() { return null; }
+      };
+    },
+    set(v) {
+      Object.defineProperty(window, 'Auth', { value: v, writable: false, configurable: true });
+    }
+  });
 })();
