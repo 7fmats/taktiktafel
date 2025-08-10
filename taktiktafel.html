@@ -17,7 +17,6 @@
   .ball circle{fill:#fff;stroke:#000;stroke-width:.6}
   .hint{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.7);color:#fff;padding:6px 10px;border-radius:8px;font-size:12px}
 
-  /* Save/Load Modals (bleiben modal) */
   .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.5);padding:12px;z-index:1000}
   .modal.open{display:grid}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:var(--shadow);padding:14px;width:min(760px,96vw)}
@@ -26,46 +25,38 @@
   .list{display:grid;gap:8px;max-height:50vh;overflow:auto;padding:4px;border:1px dashed #e5e7eb;border-radius:12px}
   .item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid #e5e7eb;border-radius:10px}
 
-  /* Animation Dock (nicht modal) */
+  /* Animation Dock */
   .anim-dock{
     position:fixed; left:12px; right:12px; bottom:12px; z-index:900;
     background:#fff; border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
     display:grid; grid-template-rows:auto 1fr; max-height:45svh; overflow:hidden;
   }
   .anim-dock.collapsed{grid-template-rows:auto; max-height:unset}
-  .anim-head{
-    display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fafafa; border-bottom:1px solid var(--border);
-  }
+  .anim-head{display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fafafa; border-bottom:1px solid var(--border)}
   .anim-title{font-weight:900}
   .anim-body{display:grid; grid-template-columns: 1fr 260px; gap:12px; padding:12px}
   @media(max-width:900px){ .anim-body{grid-template-columns:1fr} }
-  .frames{
-    display:grid; gap:8px;
-  }
-  .frames-list{
-    display:grid; gap:8px; grid-auto-rows:minmax(44px,auto);
-    max-height:26svh; overflow:auto; border:1px dashed var(--border); padding:6px; border-radius:12px;
-  }
-  .frame-item{
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:8px; border:1px solid var(--border); border-radius:10px; background:#fff;
-  }
+  .frames{display:grid; gap:8px}
+  .frames-list{display:grid; gap:8px; grid-auto-rows:minmax(44px,auto); max-height:26svh; overflow:auto; border:1px dashed var(--border); padding:6px; border-radius:12px}
+  .frame-item{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; border:1px solid var(--border); border-radius:10px; background:#fff}
   .anim-controls{display:grid; gap:8px}
   .anim-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
   .anim-toggle{margin-left:auto}
 </style>
 </head>
 <body data-feature="Taktiktafel">
-  <!-- Header -->
   <header class="app-header">
-    <div class="left"><a href="index.html" class="btn btn-yellow">Startseite</a></div>
+    <div class="left">
+      <a href="index.html" class="btn btn-yellow">Startseite</a>
+      <span id="userLabel" class="muted" style="display:none;"></span>
+      <button id="logoutBtn" class="btn btn-ghost" style="display:none;">Logout</button>
+    </div>
     <div class="right brand-pack">
       <div><h1 class="app-title">Taktiktafel</h1><p class="app-sub">TSV Handorf</p></div>
-      <img src="TSV-Logo_1%20(1).jpg" alt="TSV Handorf Logo">
+      <img src="tsv-logo.jpg" alt="TSV Handorf Logo">
     </div>
   </header>
 
-  <!-- Toolbar -->
   <div class="container">
     <div class="toolbar" role="toolbar" aria-label="Werkzeuge">
       <button id="toggleDraw" class="btn btn-ghost">Pfeil zeichnen</button>
@@ -88,13 +79,10 @@
       <span style="flex:1 1 auto"></span>
       <button id="openSave" class="btn btn-yellow">Speichern…</button>
       <button id="openLoad" class="btn btn-blue">Laden…</button>
-
-      <!-- Dock Toggle -->
       <button id="toggleDock" class="btn btn-green">Animation</button>
     </div>
   </div>
 
-  <!-- Spielfeld -->
   <div class="canvas-outer">
     <div class="board-frame">
       <svg id="board" viewBox="0 0 84 105" preserveAspectRatio="xMidYMid meet">
@@ -191,8 +179,26 @@
 
   <script src="auth.js"></script>
   <script>
-  if (window.Auth) { Auth.ready.then(() => Auth.requireAuth('auth.html')); }
+    // Optionaler Auth-Guard
+    if (window.Auth) { Auth.ready.then(() => Auth.requireAuth('auth.html')); }
 
+    // Header: User anzeigen & Logout
+    (function () {
+      const label = document.getElementById('userLabel');
+      const btn = document.getElementById('logoutBtn');
+      function showUser(u) {
+        if (!label || !btn) return;
+        if (u) { label.textContent = u.email ? `Angemeldet: ${u.email}` : 'Angemeldet'; label.style.display = 'inline'; btn.style.display = 'inline-flex'; }
+        else   { label.style.display = 'none'; btn.style.display = 'none'; }
+      }
+      if (window.Auth) {
+        Auth.ready.then(() => { if (Auth.onAuth) Auth.onAuth(user => showUser(user)); });
+        if (btn) btn.addEventListener('click', async () => { try { await Auth.signOut(); } finally { location.href = 'auth.html'; } });
+      }
+    })();
+  </script>
+
+  <script>
   /* ====== STATE / SVG ====== */
   const KEY_PLANS='tsv_tactics_plans_v2', KEY_ANIMS='tsv_tactics_anims_v2';
   const svg=document.getElementById('board'), playersG=document.getElementById('players'), ballG=document.getElementById('ball'), arrowsG=document.getElementById('arrows');
@@ -300,7 +306,8 @@
     (state.players||[]).forEach(p=>{const g=map.get(p.team+'-'+p.number); if(g){const c=g.querySelector('circle'),t=g.querySelector('text'); c.setAttribute('cx',p.cx); c.setAttribute('cy',p.cy); t.setAttribute('x',p.cx); t.setAttribute('y',p.cy);}});
     const bc=ballG.querySelector('circle'); if(bc&&state.ball){bc.setAttribute('cx',state.ball.cx); bc.setAttribute('cy',state.ball.cy);}
     while(arrowsG.firstChild)arrowsG.removeChild(arrowsG.firstChild);
-    (state.arrows||[]).forEach(a=>{const l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',a.x1); l.setAttribute('y1',a.y1); l.setAttribute('x2',a.x2); l.setAttribute('y2',a.y2); l.setAttribute('stroke','black'); l.setAttribute('stroke-width','.6'); l.setAttribute('marker-end','url(#arrowhead)'); arrowsG.appendChild(l);});
+    (state.arrows||[]).forEach(a=>{const l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',a.x1); l.setAttribute('y1',a.y1); l.setAttribute('x2',a.x2); l.setAttribute('y2',a.y2);
+      l.setAttribute('stroke','black'); l.setAttribute('stroke-width','.6'); l.setAttribute('marker-end','url(#arrowhead)'); arrowsG.appendChild(l);});
   }
   function loadPlans(){try{return JSON.parse(localStorage.getItem(KEY_PLANS))||[]}catch(e){return[]}}
   function savePlans(list){localStorage.setItem(KEY_PLANS,JSON.stringify(list))}
@@ -333,7 +340,6 @@
   const animName=document.getElementById('animName');
   const animSelect=document.getElementById('animSelect');
 
-  // Dock toggling
   const dock=document.getElementById('animDock');
   const dockBtn=document.getElementById('toggleDock');
   const dockCollapse=document.getElementById('dockCollapse');
@@ -407,11 +413,9 @@
     }
   };
 
-  /* ====== BOOT ====== */
   function boot(){ initPlayers(); createBall(42,52.5); refreshAnimSelect(); setDock(true); }
   if(window.Auth){ Auth.ready.then(()=>{ Auth.onAuth(u=>{ if(u) boot(); }); }); setTimeout(()=>{ if(!playersG.children.length) boot(); },800); }
   else { document.addEventListener('DOMContentLoaded', boot); }
-
   </script>
 </body>
 </html>
