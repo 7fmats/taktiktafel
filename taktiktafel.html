@@ -32,6 +32,7 @@
     display:grid; grid-template-rows:auto 1fr; max-height:45svh; overflow:hidden;
   }
   .anim-dock.collapsed{grid-template-rows:auto; max-height:unset}
+  .anim-dock.collapsed .anim-body{display:none} /* <- Body wirklich ausblenden */
   .anim-head{display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fafafa; border-bottom:1px solid var(--border)}
   .anim-title{font-weight:900}
   .anim-body{display:grid; grid-template-columns: 1fr 260px; gap:12px; padding:12px}
@@ -79,7 +80,7 @@
       <span style="flex:1 1 auto"></span>
       <button id="openSave" class="btn btn-yellow">Speichern…</button>
       <button id="openLoad" class="btn btn-blue">Laden…</button>
-      <button id="toggleDock" class="btn btn-green">Animation</button>
+      <button id="toggleDock" class="btn btn-green" aria-pressed="false">Animation</button>
     </div>
   </div>
 
@@ -142,7 +143,7 @@
     <div class="anim-head">
       <span class="anim-title">Animation</span>
       <div class="anim-toggle" style="margin-left:auto">
-        <button id="dockCollapse" class="btn btn-ghost" title="Ein-/Ausklappen">▲</button>
+        <button id="dockCollapse" class="btn btn-ghost" title="Ein-/Ausklappen" aria-expanded="false">▼</button>
       </div>
     </div>
     <div class="anim-body">
@@ -333,7 +334,7 @@
   }
   function escapeHtml(s){return (s||'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 
-  /* ====== ANIMATION (Dock) ====== */
+  /* ====== ANIMATION (Dock) – Toggle fix ====== */
   let frames=[], playTimer=null;
   const framesList=document.getElementById('framesList');
   const animMs=document.getElementById('animMs');
@@ -343,10 +344,18 @@
   const dock=document.getElementById('animDock');
   const dockBtn=document.getElementById('toggleDock');
   const dockCollapse=document.getElementById('dockCollapse');
-  let collapsed=true;
-  function setDock(state){ collapsed = state; dock.classList.toggle('collapsed', collapsed); dockCollapse.textContent = collapsed ? '▲' : '▼'; }
-  dockBtn.onclick=()=>setDock(false);
-  dockCollapse.onclick=()=>setDock(!collapsed);
+  let isOpen=false; // geschlossen starten
+
+  function setDock(open){
+    isOpen = !!open;
+    dock.classList.toggle('collapsed', !isOpen);
+    dockCollapse.textContent = isOpen ? '▲' : '▼';
+    dockCollapse.setAttribute('aria-expanded', String(isOpen));
+    if (dockBtn) dockBtn.setAttribute('aria-pressed', String(isOpen));
+  }
+  // Beide Trigger öffnen/schließen jetzt zuverlässig
+  if (dockBtn) dockBtn.onclick = () => setDock(!isOpen);
+  if (dockCollapse) dockCollapse.onclick = () => setDock(!isOpen);
 
   function renderFrames(){
     framesList.innerHTML='';
@@ -403,7 +412,7 @@
   document.getElementById('animLoad').onclick=()=>{
     const list=loadAnims(); const i=+animSelect.value;
     if(Number.isNaN(i) || !list[i]) return alert('Bitte eine gespeicherte Animation auswählen.');
-    frames = list[i].frames.slice(); renderFrames(); setDock(false);
+    frames = list[i].frames.slice(); renderFrames(); setDock(true);
   };
   document.getElementById('animDelete').onclick=()=>{
     const list=loadAnims(); const i=+animSelect.value;
@@ -413,7 +422,7 @@
     }
   };
 
-  function boot(){ initPlayers(); createBall(42,52.5); refreshAnimSelect(); setDock(true); }
+  function boot(){ initPlayers(); createBall(42,52.5); refreshAnimSelect(); setDock(false); } // eingeklappt starten
   if(window.Auth){ Auth.ready.then(()=>{ Auth.onAuth(u=>{ if(u) boot(); }); }); setTimeout(()=>{ if(!playersG.children.length) boot(); },800); }
   else { document.addEventListener('DOMContentLoaded', boot); }
   </script>
