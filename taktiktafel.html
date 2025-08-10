@@ -1,17 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Taktiktafel – TSV Handorf (Mobil-optimiert)</title>
+<title>Taktiktafel – TSV Handorf (Fix: Spieler-Render)</title>
 <style>
-  :root {
-    --gap: 10px;
-    --card: #ffffff;
-    --border: #e5e7eb;
-    --shadow: 0 6px 26px rgba(0,0,0,.08);
-  }
+  :root { --gap: 10px; --card: #ffffff; --border: #e5e7eb; --shadow: 0 6px 26px rgba(0,0,0,.08); }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
@@ -20,86 +14,33 @@
     display: grid; grid-template-rows: auto auto 1fr; gap: var(--gap);
     color: #0f172a;
   }
-
-  /* Header */
-  header {
-    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
-    padding: 10px 12px;
-  }
+  header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 10px 12px; }
   .brand { display:flex; align-items:center; gap:10px; }
   .brand h1 { margin:0; font-size: 16px; font-weight: 800; }
   .brand img { width:48px; height:58px; object-fit:contain; }
-
-  /* Toolbar: horizontal scroll on mobile */
   .toolbar {
     display: flex; gap: 8px; align-items: center; padding: 10px 12px;
     overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
     background: var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
   }
   .toolbar > * { scroll-snap-align: start; flex: 0 0 auto; }
-  .toolbar label { font-size: 12px; color:#475569; }
-  button, select {
-    padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background:#fff;
-    font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: pointer;
-  }
-  button:active { transform: translateY(1px); }
-  .toggle.on { background: #e6ffe6; border-color: #7ed957; }
-
-  /* Board container: keeps 84:105 ratio, fills screen height on mobile */
-  .canvas-outer {
-    padding: 0 12px 12px;
-    min-height: 0;
-  }
+  .canvas-outer { padding: 0 12px 12px; min-height: 0; }
   .board-frame {
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    aspect-ratio: 84 / 105;
-    background: #6aa84f;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: var(--shadow);
+    width: 100%; max-width: 1100px; margin: 0 auto; aspect-ratio: 84 / 105;
+    background: #6aa84f; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
     position: relative;
   }
-  /* On very short viewports: allow the frame to stretch using available height */
-  @supports (height: 100svh) {
-    .board-frame { height: calc(100svh - 180px); aspect-ratio: auto; }
-  }
-
-  svg#board {
-    position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; border-radius: 10px;
-  }
-  .player { cursor: grab; }
-  .player.drag { cursor: grabbing; }
-  .player text { fill:#fff; font-weight:700; font-size:4px; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  @supports (height: 100svh) { .board-frame { height: calc(100svh - 180px); aspect-ratio: auto; } }
+  svg#board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; border-radius: 10px; }
+  #players { pointer-events: none; }
+  #players .player { pointer-events: all; cursor: grab; }
+  #players .player.drag { cursor: grabbing; }
+  #players .player text { font-weight:700; font-size:4px; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
   .ball circle { fill:#fff; stroke:#000; stroke-width:0.6; }
-
-  .hint {
-    position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.7); color:#fff;
-    padding: 6px 10px; border-radius: 8px; font-size: 12px;
-  }
-
-  /* Modals */
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:16px; z-index:1000; }
-  .modal { width: min(760px, 96vw); max-height: 85vh; background:#fff; border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.15); display:flex; flex-direction:column; overflow:hidden; }
-  .modal header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee; }
-  .modal header h2 { margin:0; font-size:16px; }
-  .modal .content { padding: 14px 16px; overflow:auto; }
-  .modal .actions { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:14px 16px; border-top:1px solid #eee; flex-wrap:wrap; }
-  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
-  .input { padding:10px 12px; border:1px solid #ddd; border-radius:10px; min-width: 220px; }
-  .list { border:1px solid #eee; border-radius:12px; overflow:hidden; }
-  .scene { display:grid; grid-template-columns: 1fr auto auto auto auto; gap:8px; align-items:center; padding:10px 12px; }
-  .scene:nth-child(odd) { background:#fafafa; }
-  .scene .name { width: 100%; }
-  .scene .dur { width: 90px; }
-
-  .btn-primary { background:#0ea5e9; color:#fff; border-color:#0ea5e9; }
-  .btn-danger { background:#ffeaea; border-color:#f3b1b1; }
-  .ghost { background:#fafafa; }
-
-  /* Safe areas for iOS */
-  body { padding-bottom: env(safe-area-inset-bottom); }
+  .hint { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.7); color:#fff; padding: 6px 10px; border-radius: 8px; font-size: 12px; }
+  .ghost { background:#fafafa; border:1px solid var(--border); border-radius:12px; padding:10px 14px; }
+  .btn { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background:#fff; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: pointer; }
+  .btn:active { transform: translateY(1px); }
 </style>
 </head>
 <body>
@@ -111,41 +52,30 @@
     </div>
   </header>
 
-  <!-- Scrollable toolbar on small screens -->
   <div class="toolbar" role="toolbar" aria-label="Werkzeuge">
-    <button id="toggleDraw" class="toggle">Pfeil zeichnen</button>
-    <button id="clearArrows" class="ghost">Pfeile löschen</button>
-    <button id="resetPlayers" class="ghost">Reset Spieler</button>
+    <button id="toggleDraw" class="btn">Pfeil zeichnen</button>
+    <button id="clearArrows" class="btn ghost">Pfeile löschen</button>
+    <button id="resetPlayers" class="btn ghost">Reset Spieler</button>
+    <button id="rebuildPlayers" class="btn ghost">Rebuild Spieler</button>
 
-    <label for="team1Color">Team 1:</label>
-    <select id="team1Color">
-      <option value="#d32f2f">Rot</option>
-      <option value="#ffd400">Gelb</option>
-      <option value="#2e7d32" selected>Grün</option>
-      <option value="#000000">Schwarz</option>
-      <option value="#ffffff">Weiß</option>
-    </select>
+    <label for="team1Color" class="ghost">Team 1:
+      <select id="team1Color">
+        <option value="#d32f2f">Rot</option>
+        <option value="#ffd400">Gelb</option>
+        <option value="#2e7d32" selected>Grün</option>
+        <option value="#000000">Schwarz</option>
+        <option value="#ffffff">Weiß</option>
+      </select>
+    </label>
 
-    <label for="team2Color">Team 2:</label>
-    <select id="team2Color">
-      <option value="#d32f2f" selected>Rot</option>
-      <option value="#ffd400">Gelb</option>
-      <option value="#2e7d32">Grün</option>
-      <option value="#000000">Schwarz</option>
-      <option value="#ffffff">Weiß</option>
-    </select>
-
-    <button id="openSave" class="btn-primary">Speichern…</button>
-    <button id="openLoad" class="ghost">Laden…</button>
-
-    <button id="sceneAdd" class="ghost">Szene +</button>
-    <button id="openAnim" class="ghost">Animation…</button>
-    <button id="animPlay" class="ghost">Play ▶</button>
-    <button id="animPause" class="ghost">Pause ⏸</button>
-    <button id="animStop" class="ghost">Stop ⏹</button>
-    <label style="display:flex;align-items:center;gap:6px">Loop <input type="checkbox" id="animLoop"></label>
-    <label style="display:flex;align-items:center;gap:6px">FPS
-      <select id="animFps"><option>24</option><option selected>30</option><option>60</option></select>
+    <label for="team2Color" class="ghost">Team 2:
+      <select id="team2Color">
+        <option value="#d32f2f" selected>Rot</option>
+        <option value="#ffd400">Gelb</option>
+        <option value="#2e7d32">Grün</option>
+        <option value="#000000">Schwarz</option>
+        <option value="#ffffff">Weiß</option>
+      </select>
     </label>
   </div>
 
@@ -179,331 +109,178 @@
     </div>
   </div>
 
-  <!-- Save Modal -->
-  <div id="saveModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="saveTitle">
-    <div class="modal">
-      <header><h2 id="saveTitle">Anordnung speichern</h2><button class="ghost" id="closeSave">✕</button></header>
-      <div class="content">
-        <div class="row">
-          <input id="saveName" class="input" type="text" placeholder="Name der Anordnung (z. B. Greven-Pressing)" />
-          <button id="saveNow" class="btn-primary">Speichern</button>
-        </div>
-        <div id="saveList" class="list"></div>
-      </div>
-      <div class="actions"><button class="ghost" id="closeSave2">Schließen</button></div>
-    </div>
-  </div>
+  <!-- Auth loader (optional; Seite funktioniert auch ohne, aber wir warten, falls vorhanden) -->
+  <script src="auth.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => initAfterAuth());
 
-  <!-- Load Modal -->
-  <div id="loadModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loadTitle">
-    <div class="modal">
-      <header><h2 id="loadTitle">Anordnung laden</h2><button class="ghost" id="closeLoad">✕</button></header>
-      <div class="content"><div id="loadList" class="list"></div></div>
-      <div class="actions"><button class="ghost" id="closeLoad2">Schließen</button></div>
-    </div>
-  </div>
-
-  <!-- Animation Modal -->
-  <div id="animModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="animTitle">
-    <div class="modal">
-      <header><h2 id="animTitle">Animation / Timeline</h2><button class="ghost" id="closeAnim">✕</button></header>
-      <div class="content">
-        <div class="row">
-          <input id="sceneName" class="input" type="text" placeholder="Name der Szene (z. B. Aufbau links)" />
-          <input id="sceneDur" class="input" type="number" min="0.2" step="0.1" value="2.0" style="width:120px" />
-          <button id="sceneAddModal" class="btn-primary">Szene aus aktueller Anordnung hinzufügen</button>
-        </div>
-        <div class="list" id="sceneList"></div>
-      </div>
-      <div class="actions">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button id="animPlay2" class="btn-primary">Play ▶</button>
-          <button id="animPause2" class="">Pause ⏸</button>
-          <button id="animStop2" class="">Stop ⏹</button>
-          <label style="display:flex;align-items:center;gap:6px">Loop <input type="checkbox" id="animLoop2"></label>
-          <label style="display:flex;align-items:center;gap:6px">FPS
-            <select id="animFps2"><option>24</option><option selected>30</option><option>60</option></select>
-          </label>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <input id="seqName" class="input" type="text" placeholder="Name der Sequenz" />
-          <button id="seqSave">Sequenz speichern</button>
-          <select id="seqSelect"></select>
-          <button id="seqLoad">Sequenz laden</button>
-          <button id="seqDelete" class="btn-danger">Sequenz löschen</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<script>
-(function(){
-  const KEY = "tsv_taktiktafel_named_saves_modal_v1";
-  const KEY_SEQ = "tsv_taktiktafel_sequences_v1";
-
-  const svg = document.getElementById('board');
-  const playersG = document.getElementById('players');
-  const ballG = document.getElementById('ball');
-  const arrowsG = document.getElementById('arrows');
-
-  const btnDraw = document.getElementById('toggleDraw');
-  const btnClear = document.getElementById('clearArrows');
-  const btnReset = document.getElementById('resetPlayers');
-
-  const team1Sel = document.getElementById('team1Color');
-  const team2Sel = document.getElementById('team2Color');
-
-  const openSave = document.getElementById('openSave');
-  const openLoad = document.getElementById('openLoad');
-  const saveModal = document.getElementById('saveModal');
-  const loadModal = document.getElementById('loadModal');
-  const closeSave = document.getElementById('closeSave');
-  const closeSave2 = document.getElementById('closeSave2');
-  const closeLoad = document.getElementById('closeLoad');
-  const closeLoad2 = document.getElementById('closeLoad2');
-  const saveNameInput = document.getElementById('saveName');
-  const saveNow = document.getElementById('saveNow');
-  const saveList = document.getElementById('saveList');
-  const loadList = document.getElementById('loadList');
-
-  const openAnim = document.getElementById('openAnim');
-  const animModal = document.getElementById('animModal');
-  const closeAnim = document.getElementById('closeAnim');
-
-  const sceneName = document.getElementById('sceneName');
-  const sceneDur = document.getElementById('sceneDur');
-  const sceneAdd = document.getElementById('sceneAdd');
-  const sceneAddModal = document.getElementById('sceneAddModal');
-  const sceneList = document.getElementById('sceneList');
-
-  const animPlay = document.getElementById('animPlay');
-  const animPause = document.getElementById('animPause');
-  const animStop = document.getElementById('animStop');
-  const animLoop = document.getElementById('animLoop');
-  const animFps = document.getElementById('animFps');
-
-  const animPlay2 = document.getElementById('animPlay2');
-  const animPause2 = document.getElementById('animPause2');
-  const animStop2 = document.getElementById('animStop2');
-  const animLoop2 = document.getElementById('animLoop2');
-  const animFps2 = document.getElementById('animFps2');
-
-  const seqName = document.getElementById('seqName');
-  const seqSelect = document.getElementById('seqSelect');
-  const seqSave = document.getElementById('seqSave');
-  const seqLoad = document.getElementById('seqLoad');
-  const seqDelete = document.getElementById('seqDelete');
-
-  const PITCH_H = 105;
-
-  let drawMode = false;
-  let team1Color = team1Sel.value;
-  let team2Color = team2Sel.value;
-
-  function openModal(el){ el.style.display='flex'; }
-  function closeModal(el){ el.style.display='none'; }
-
-  btnDraw.addEventListener('click', () => { drawMode = !drawMode; btnDraw.classList.toggle('on', drawMode); });
-
-  function svgPoint(evt) {
-    const pt = svg.createSVGPoint();
-    if (evt.touches && evt.touches[0]) { pt.x = evt.touches[0].clientX; pt.y = evt.touches[0].clientY; }
-    else { pt.x = evt.clientX; pt.y = evt.clientY; }
-    const m = svg.getScreenCTM().inverse();
-    return pt.matrixTransform(m);
-  }
-
-  function setTeamColor(team, color) {
-    const groups = playersG.querySelectorAll('.player.'+team);
-    groups.forEach(g => {
-      const c = g.querySelector('circle');
-      const t = g.querySelector('text');
-      c.setAttribute('fill', color);
-      const lc = color.toLowerCase();
-      const bright = (lc === '#ffffff' || lc === '#ffd400');
-      t.setAttribute('fill', bright ? '#000000' : '#ffffff');
-      c.setAttribute('stroke', bright ? '#000000' : 'none');
-      c.setAttribute('stroke-width', bright ? '0.3' : '0');
-    });
-  }
-  team1Sel.addEventListener('change', (e)=>{ team1Color = e.target.value; setTeamColor('team1', team1Color); });
-  team2Sel.addEventListener('change', (e)=>{ team2Color = e.target.value; setTeamColor('team2', team2Color); });
-
-  function createPlayer(team, number, x, y) {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.classList.add('player', team);
-    g.setAttribute('data-team', team);
-    g.setAttribute('data-number', number);
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    c.setAttribute('r', 2.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
-    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t.setAttribute('x', x); t.setAttribute('y', y); t.textContent = number;
-    g.appendChild(c); g.appendChild(t);
-    makeDraggable(g);
-    playersG.appendChild(g);
-    setTeamColor(team, team === 'team1' ? team1Color : team2Color);
-    return g;
-  }
-  function createBall(x, y) {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.classList.add('ball');
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    c.setAttribute('r', 1.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
-    g.appendChild(c); makeDraggable(g); ballG.appendChild(g); return g;
-  }
-
-  function makeDraggable(g) {
-    let dragging = false, dx=0, dy=0;
-    function getCenter(){ const c=g.querySelector('circle'); return {cx:parseFloat(c.getAttribute('cx')), cy:parseFloat(c.getAttribute('cy'))}; }
-    function setCenter(x,y){ const c=g.querySelector('circle'), t=g.querySelector('text'); c.setAttribute('cx',x); c.setAttribute('cy',y); if(t){t.setAttribute('x',x); t.setAttribute('y',y);} }
-    function start(evt){
-      if (drawMode) return;
-      evt.preventDefault();
-      const p=svgPoint(evt), ctr=getCenter(); dx=p.x-ctr.cx; dy=p.y-ctr.cy; dragging=true;
-      g.classList.add('drag');
-      window.addEventListener('mousemove', move, {passive:false});
-      window.addEventListener('mouseup', end, {passive:false});
-      window.addEventListener('touchmove', move, {passive:false});
-      window.addEventListener('touchend', end, {passive:false});
-      window.addEventListener('touchcancel', end, {passive:false});
+  function initAfterAuth() {
+    if (window.Auth && Auth.ready) {
+      Auth.ready.then(() => {
+        // wenn Guard aktiv ist, kommt der User hier nur an, wenn eingeloggt
+        Auth.onAuth((user) => {
+          if (!user) return; // Guard/Redirect handled elsewhere
+          buildOnce();
+        });
+        // Fallback: wenn nach 800ms immer noch nix gerendert ist → trotzdem bauen
+        setTimeout(() => { if (!document.querySelector('#players').children.length) buildOnce(); }, 800);
+      });
+    } else {
+      // Kein Auth → sofort bauen
+      buildOnce();
     }
-    function move(evt){
-      if(!dragging) return; evt.preventDefault();
-      const p=svgPoint(evt); setCenter(p.x-dx, p.y-dy);
+  }
+
+  let built = false;
+  function buildOnce() {
+    if (built) return;
+    built = true;
+    initBoard();
+    // Falls trotzdem leer: Notfall-Rebuild-Knopf
+    setTimeout(() => { if (!document.querySelector('#players').children.length) initPlayers(); }, 200);
+  }
+
+  function initBoard() {
+    const svg = document.getElementById('board');
+    const playersG = document.getElementById('players');
+    const ballG = document.getElementById('ball');
+    const arrowsG = document.getElementById('arrows');
+
+    const btnDraw = document.getElementById('toggleDraw');
+    const btnClear = document.getElementById('clearArrows');
+    const btnReset = document.getElementById('resetPlayers');
+    const btnRebuild = document.getElementById('rebuildPlayers');
+
+    const team1Sel = document.getElementById('team1Color');
+    const team2Sel = document.getElementById('team2Color');
+
+    const PITCH_H = 105;
+
+    let drawMode = false;
+    let team1Color = team1Sel.value;
+    let team2Color = team2Sel.value;
+
+    btnDraw.addEventListener('click', () => { drawMode = !drawMode; btnDraw.classList.toggle('ghost', !drawMode); });
+    btnRebuild.addEventListener('click', () => initPlayers());
+
+    function svgPoint(evt) {
+      const pt = svg.createSVGPoint();
+      if (evt.touches && evt.touches[0]) { pt.x = evt.touches[0].clientX; pt.y = evt.touches[0].clientY; }
+      else { pt.x = evt.clientX; pt.y = evt.clientY; }
+      const m = svg.getScreenCTM().inverse();
+      return pt.matrixTransform(m);
     }
-    function end(){ dragging=false; g.classList.remove('drag');
-      window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
-      window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', end);
-    }
-    g.addEventListener('mousedown', start, {passive:false});
-    g.addEventListener('touchstart', start, {passive:false});
-  }
 
-  const team1=[], team2=[];
-  for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); team1.push(createPlayer('team1', i, 4, y)); }
-  for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); team2.push(createPlayer('team2', i, 80, y)); }
-  const ball = createBall(42,52.5);
-
-  // Arrow drawing
-  let temp=null;
-  function beginArrow(evt){
-    if(!drawMode) return; evt.preventDefault();
-    const p=svgPoint(evt);
-    temp=document.createElementNS('http://www.w3.org/2000/svg','line');
-    temp.setAttribute('x1',p.x); temp.setAttribute('y1',p.y); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y);
-    temp.setAttribute('stroke','black'); temp.setAttribute('stroke-width','0.6'); temp.setAttribute('marker-end','url(#arrowhead)');
-    arrowsG.appendChild(temp);
-    window.addEventListener('mousemove', drawArrow, {passive:false});
-    window.addEventListener('mouseup', finishArrow, {passive:false});
-    window.addEventListener('touchmove', drawArrow, {passive:false});
-    window.addEventListener('touchend', finishArrow, {passive:false});
-    window.addEventListener('touchcancel', finishArrow, {passive:false});
-  }
-  function drawArrow(evt){ if(!temp) return; evt.preventDefault(); const p=svgPoint(evt); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y); }
-  function finishArrow(evt){ if(!temp) return; evt.preventDefault(); temp=null;
-    window.removeEventListener('mousemove', drawArrow);
-    window.removeEventListener('mouseup', finishArrow);
-    window.removeEventListener('touchmove', drawArrow);
-    window.removeEventListener('touchend', finishArrow);
-    window.removeEventListener('touchcancel', finishArrow);
-  }
-  svg.addEventListener('mousedown', beginArrow, {passive:false});
-  svg.addEventListener('touchstart', beginArrow, {passive:false});
-
-  btnClear.addEventListener('click', ()=>{ while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild); });
-  btnReset.addEventListener('click', ()=>{
-    playersG.querySelectorAll('.player').forEach(g=>{
-      const num=parseInt(g.getAttribute('data-number')), team=g.getAttribute('data-team');
-      const y=6+(num-1)*((PITCH_H-12)/10), x=(team==='team1')?4:80;
-      const c=g.querySelector('circle'), t=g.querySelector('text');
-      c.setAttribute('cx',x); c.setAttribute('cy',y); t.setAttribute('x',x); t.setAttribute('y',y);
-    });
-    const bc=ball.querySelector('circle'); bc.setAttribute('cx',42); bc.setAttribute('cy',52.5);
-    while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild);
-  });
-
-  /* Save/Load */
-  function getSaves(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e) { return {}; } }
-  function setSaves(obj){ localStorage.setItem(KEY, JSON.stringify(obj)); }
-  function fmtDate(ts){ const d=new Date(ts); return d.toLocaleString(); }
-
-  function collectState(){
-    const players = Array.from(playersG.querySelectorAll('.player')).map(g => {
-      const c=g.querySelector('circle');
-      return { team: g.getAttribute('data-team'), number: parseInt(g.getAttribute('data-number')), x: parseFloat(c.getAttribute('cx')), y: parseFloat(c.getAttribute('cy')) };
-    });
-    const ballC = ball.querySelector('circle');
-    const arrows = Array.from(arrowsG.querySelectorAll('line')).map(l => ({ x1: parseFloat(l.getAttribute('x1')), y1: parseFloat(l.getAttribute('y1')), x2: parseFloat(l.getAttribute('x2')), y2: parseFloat(l.getAttribute('y2')) }));
-    return { players, ball: { x: parseFloat(ballC.getAttribute('cx')), y: parseFloat(ballC.getAttribute('cy')) }, arrows, colors: { team1: team1Color, team2: team2Color }, ts: Date.now() };
-  }
-  function applyState(data){
-    if(!data) return;
-    if(data.colors) {
-      team1Color = data.colors.team1 || team1Color; team1Sel.value = team1Color; setTeamColor('team1', team1Color);
-      team2Color = data.colors.team2 || team2Color; team2Sel.value = team2Color; setTeamColor('team2', team2Color);
-    }
-    if(Array.isArray(data.players)){
-      data.players.forEach(info=>{
-        const g = playersG.querySelector('.player[data-team="'+info.team+'"][data-number="'+info.number+'"]');
-        if(!g) return;
-        const c=g.querySelector('circle'), t=g.querySelector('text');
-        c.setAttribute('cx', info.x); c.setAttribute('cy', info.y);
-        t.setAttribute('x', info.x); t.setAttribute('y', info.y);
+    function setTeamColor(team, color) {
+      const groups = playersG.querySelectorAll('.player.'+team);
+      groups.forEach(g => {
+        const c = g.querySelector('circle');
+        const t = g.querySelector('text');
+        c.setAttribute('fill', color);
+        const lc = color.toLowerCase();
+        const bright = (lc === '#ffffff' || lc === '#ffd400');
+        t.setAttribute('fill', bright ? '#000' : '#fff');
+        c.setAttribute('stroke', bright ? '#000' : 'none');
+        c.setAttribute('stroke-width', bright ? '0.3' : '0');
       });
     }
-    if(data.ball){ const bc=ball.querySelector('circle'); bc.setAttribute('cx', data.ball.x); bc.setAttribute('cy', data.ball.y); }
-    while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild);
-    if(Array.isArray(data.arrows)){
-      data.arrows.forEach(a=>{ const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-        line.setAttribute('x1',a.x1); line.setAttribute('y1',a.y1);
-        line.setAttribute('x2',a.x2); line.setAttribute('y2',a.y2);
-        line.setAttribute('stroke','black'); line.setAttribute('stroke-width','0.6');
-        line.setAttribute('marker-end','url(#arrowhead)'); arrowsG.appendChild(line); });
+    team1Sel.addEventListener('change', (e)=>{ setTeamColor('team1', e.target.value); });
+    team2Sel.addEventListener('change', (e)=>{ setTeamColor('team2', e.target.value); });
+
+    function makeDraggable(g) {
+      let dragging = false, dx=0, dy=0;
+      function getCenter(){ const c=g.querySelector('circle'); return {cx:parseFloat(c.getAttribute('cx')), cy:parseFloat(c.getAttribute('cy'))}; }
+      function setCenter(x,y){ const c=g.querySelector('circle'), t=g.querySelector('text'); c.setAttribute('cx',x); c.setAttribute('cy',y); if(t){t.setAttribute('x',x); t.setAttribute('y',y);} }
+      function start(evt){
+        if (drawMode) return;
+        evt.preventDefault();
+        const p=svgPoint(evt), ctr=getCenter(); dx=p.x-ctr.cx; dy=p.y-ctr.cy; dragging=true;
+        g.classList.add('drag');
+        window.addEventListener('mousemove', move, {passive:false});
+        window.addEventListener('mouseup', end, {passive:false});
+        window.addEventListener('touchmove', move, {passive:false});
+        window.addEventListener('touchend', end, {passive:false});
+        window.addEventListener('touchcancel', end, {passive:false});
+      }
+      function move(evt){
+        if(!dragging) return; evt.preventDefault();
+        const p=svgPoint(evt); setCenter(p.x-dx, p.y-dy);
+      }
+      function end(){ dragging=false; g.classList.remove('drag');
+        window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
+        window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', end);
+      }
+      g.addEventListener('mousedown', start, {passive:false});
+      g.addEventListener('touchstart', start, {passive:false});
     }
+
+    window.initPlayers = function(){  // idempotent rebuild
+      playersG.innerHTML = '';
+      for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team1', i, 4, y); }
+      for(let i=1;i<=11;i++){ const y=6+(i-1)*((PITCH_H-12)/10); createPlayer('team2', i, 80, y); }
+      setTeamColor('team1', team1Sel.value);
+      setTeamColor('team2', team2Sel.value);
+    };
+
+    function createPlayer(team, number, x, y) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.classList.add('player', team);
+      g.setAttribute('data-team', team);
+      g.setAttribute('data-number', number);
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('r', 2.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y); t.textContent = number;
+      g.appendChild(c); g.appendChild(t);
+      makeDraggable(g);
+      playersG.appendChild(g);
+      return g;
+    }
+
+    function createBall(x, y) {
+      ballG.innerHTML = '';
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.classList.add('ball');
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('r', 1.0); c.setAttribute('cx', x); c.setAttribute('cy', y);
+      g.appendChild(c); makeDraggable(g); ballG.appendChild(g); return g;
+    }
+
+    // Initial populate
+    initPlayers();
+    createBall(42,52.5);
+
+    // Drawing arrows
+    let temp=null;
+    function beginArrow(evt){
+      const drawMode = !document.getElementById('toggleDraw').classList.contains('ghost');
+      if(!drawMode) return; evt.preventDefault();
+      const p = svgPoint(evt);
+      temp = document.createElementNS('http://www.w3.org/2000/svg','line');
+      temp.setAttribute('x1',p.x); temp.setAttribute('y1',p.y); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y);
+      temp.setAttribute('stroke','black'); temp.setAttribute('stroke-width','0.6'); temp.setAttribute('marker-end','url(#arrowhead)');
+      arrowsG.appendChild(temp);
+      window.addEventListener('mousemove', drawArrow, {passive:false});
+      window.addEventListener('mouseup', finishArrow, {passive:false});
+      window.addEventListener('touchmove', drawArrow, {passive:false});
+      window.addEventListener('touchend', finishArrow, {passive:false});
+      window.addEventListener('touchcancel', finishArrow, {passive:false});
+    }
+    function drawArrow(evt){ if(!temp) return; evt.preventDefault(); const p=svgPoint(evt); temp.setAttribute('x2',p.x); temp.setAttribute('y2',p.y); }
+    function finishArrow(evt){ if(!temp) return; evt.preventDefault(); temp=null;
+      window.removeEventListener('mousemove', drawArrow);
+      window.removeEventListener('mouseup', finishArrow);
+      window.removeEventListener('touchmove', drawArrow);
+      window.removeEventListener('touchend', finishArrow);
+      window.removeEventListener('touchcancel', finishArrow);
+    }
+    svg.addEventListener('mousedown', beginArrow, {passive:false});
+    svg.addEventListener('touchstart', beginArrow, {passive:false});
+
+    // Buttons
+    document.getElementById('clearArrows').addEventListener('click', ()=>{ const arrowsG = document.getElementById('arrows'); while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild); });
+    document.getElementById('resetPlayers').addEventListener('click', ()=>{ initPlayers(); const bc=document.querySelector('#ball circle'); if(bc){ bc.setAttribute('cx',42); bc.setAttribute('cy',52.5); } const arrowsG = document.getElementById('arrows'); while(arrowsG.firstChild) arrowsG.removeChild(arrowsG.firstChild); });
   }
-
-  function renderSaveList(){
-    const saves = getSaves();
-    const names = Object.keys(saves).sort();
-    if(!names.length){ saveList.innerHTML = '<div class="scene"><span class="meta">Noch nichts gespeichert.</span></div>'; return; }
-    saveList.innerHTML = names.map(name => `
-      <div class="scene">
-        <div>
-          <div class="name">${name}</div>
-          <div class="meta">${fmtDate(saves[name].ts)}</div>
-        </div>
-        <button data-act="overwrite" data-name="${name}" class="ghost">Überschreiben</button>
-        <button data-act="load" data-name="${name}">Laden</button>
-        <button data-act="delete" data-name="${name}" class="btn-danger">Löschen</button>
-      </div>
-    `).join('');
-  }
-  function renderLoadList(){
-    const saves = getSaves();
-    const names = Object.keys(saves).sort();
-    if(!names.length){ loadList.innerHTML = '<div class="scene"><span class="meta">Keine gespeicherten Anordnungen.</span></div>'; return; }
-    loadList.innerHTML = names.map(name => `
-      <div class="scene">
-        <div>
-          <div class="name">${name}</div>
-          <div class="meta">${fmtDate(saves[name].ts)}</div>
-        </div>
-        <button data-act="load" data-name="${name}" class="btn-primary">Laden</button>
-        <button data-act="delete" data-name="${name}" class="btn-danger">Löschen</button>
-      </div>
-    `).join('');
-  }
-
-  openSave.addEventListener('click', ()=>{ openModal(saveModal); renderSaveList(); saveNameInput.value=''; setTimeout(()=>saveNameInput.focus(), 50); });
-  document.getElementById('openLoad').addEventListener('click', ()=>{ openModal(loadModal); renderLoadList(); });
-
-</script>
-
-<script src="auth.js"></script>
-<script>
-Auth.ready.then(() => {
-  Auth.requireAuth("auth.html");
-});
-</script>
+  </script>
 </body>
 </html>
